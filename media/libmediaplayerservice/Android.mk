@@ -5,7 +5,7 @@ LOCAL_PATH:= $(call my-dir)
 #
 
 include $(CLEAR_VARS)
-ifneq ($(filter rk%, $(TARGET_BOARD_PLATFORM)), )
+ifneq ($(filter rk% px3se,$(TARGET_BOARD_PLATFORM)), )
 LOCAL_CFLAGS := -DAVS50
 BUILD_FF_PLAYER := true
 else
