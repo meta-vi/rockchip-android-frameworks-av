@@ -1038,8 +1038,13 @@ void WifiDisplaySink::onGetParameterRequest(
 		}
 #else
         if (strstr(request_param, "wfd_content_protection")) {
+#ifdef WFD_HDCP_SUPPORT
              mUsingHDCP = true;
-             body.append(AStringPrintf("wfd_content_protection: HDCP2.1 port=%d\r\n",kHDCPDefaultPort));
+#endif
+             if (mUsingHDCP)
+                body.append(AStringPrintf("wfd_content_protection: HDCP2.1 port=%d\r\n",kHDCPDefaultPort));
+             else
+                body.append("wfd_content_protection: none\r\n");
         }
 #endif
 
