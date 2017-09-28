@@ -428,15 +428,28 @@ void CameraService::onTorchStatusChangedLocked(const String8& cameraId,
 
 Status CameraService::getNumberOfCameras(int32_t type, int32_t* numCameras) {
     ATRACE_CALL();
+    char value[PROPERTY_VALUE_MAX];
     switch (type) {
         case CAMERA_TYPE_BACKWARD_COMPATIBLE:
             if(0 == mNumberOfNormalCameras) {
                 ALOGE("No camera be found ! check again...");
                 onFirstRef();
             }
+            property_get("persist.sys.usbcamera.status", value, "");
+            if((strcmp(value, "add") == 0)||(strcmp(value, "remove") == 0)){
+                mNumberOfCameras = mModule->getNumberOfCameras();
+                mNumberOfNormalCameras = mNumberOfCameras;
+                ALOGI("CameraService::getNumberOfCameras() = %d",mNumberOfCameras);
+            }
             *numCameras = mNumberOfNormalCameras;
             break;
         case CAMERA_TYPE_ALL:
+            property_get("persist.sys.usbcamera.status", value, "");
+            if((strcmp(value, "add") == 0)||(strcmp(value, "remove") == 0)){
+                mNumberOfCameras = mModule->getNumberOfCameras();
+                mNumberOfNormalCameras = mNumberOfCameras;
+                ALOGI("CameraService::getNumberOfCameras() = %d",mNumberOfCameras);
+            }
             *numCameras = mNumberOfCameras;
             break;
         default:
