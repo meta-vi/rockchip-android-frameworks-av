@@ -1863,6 +1863,30 @@ status_t ACodec::configureCodec(
         }
     }
 
+    int32_t bRkWFD = 0;
+    typedef PrependSPSPPSToIDRFramesParams ROCKCHIP_OMX_WFD;
+    if(encoder && msg->findInt32("vendor.rkwfd.value", &bRkWFD) && bRkWFD!=0) {
+        ALOGV("vendor.rkwfd.value : %d",bRkWFD);
+        OMX_INDEXTYPE index;
+        err = mOMX->getExtensionIndex(mNode,"OMX.rk.index.encoder.wifidisplay", &index);
+
+        if (err == OK) {
+            ALOGV("mOMX getExtensionIndex wifidisplay succed");
+            ROCKCHIP_OMX_WFD params;
+            InitOMXParams(&params);
+            params.bEnable = OMX_TRUE;
+
+            err = mOMX->setParameter(mNode, index, &params, sizeof(params));
+            if(err == OK)
+                ALOGV("mOMX setParameter wifidisplay succed");
+        }
+
+        if (err != OK) {
+            ALOGE("Encoder wifidisplay flag configure failed (err %d)", err);
+            return err;
+        }
+    }
+
     // Only enable metadata mode on encoder output if encoder can prepend
     // sps/pps to idr frames, since in metadata mode the bitstream is in an
     // opaque handle, to which we don't have access.

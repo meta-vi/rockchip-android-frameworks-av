@@ -390,7 +390,6 @@ static buffer_handle_t getMediaBufferHandle(MediaBuffer *buffer) {
     }
     ANativeWindowBuffer *bufferANB = data->pBuffer;
     return  bufferANB->handle;
-
 }
 
 void SurfaceMediaSource::signalBufferReturned(MediaBuffer *buffer) {
