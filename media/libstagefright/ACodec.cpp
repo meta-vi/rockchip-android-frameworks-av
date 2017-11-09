@@ -3392,6 +3392,31 @@ status_t ACodec::setupVideoDecoder(
         return err;
     }
 
+    //add for direct out frame
+    int32_t immediate_out;
+    if (msg->findInt32("rk-immediate-out",&immediate_out) && immediate_out > 0) {
+        OMX_PARAM_PORTDEFINITIONTYPE def;
+
+        InitOMXParams(&def);
+        def.nPortIndex = kPortIndexInput;
+
+        status_t err = mOMX->getParameter(
+            mNode, OMX_IndexParamPortDefinition, &def, sizeof(def));
+
+        if (err != OK) {
+            return err;
+        }
+
+        def.format.video.bFlagErrorConcealment = OMX_TRUE;
+
+        err = mOMX->setParameter(
+            mNode, OMX_IndexParamPortDefinition, &def, sizeof(def));
+
+        if (err != OK) {
+            return err;
+        }
+    }
+
     err = setVideoPortFormatType(
             kPortIndexInput, compressionFormat, OMX_COLOR_FormatUnused);
 
