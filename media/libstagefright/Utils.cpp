@@ -1049,6 +1049,18 @@ status_t convertMetaDataToMessage(
         parseVp9ProfileLevelFromCsd(buffer, msg);
     }
 
+    if (meta->findData(kKeyExtraData, &type, &data, &size)) {
+        sp<ABuffer> buffer = new (std::nothrow) ABuffer(size);
+        if (buffer.get() == NULL || buffer->base() == NULL) {
+            return NO_MEMORY;
+        }
+        memcpy(buffer->data(), data, size);
+
+        buffer->meta()->setInt32("csd", true);
+        buffer->meta()->setInt64("timeUs", 0);
+        msg->setBuffer("csd-0", buffer);
+    }
+
     // TODO expose "crypto-key"/kKeyCryptoKey through public api
     if (meta->findData(kKeyCryptoKey, &type, &data, &size)) {
         sp<ABuffer> buffer = new (std::nothrow) ABuffer(size);
