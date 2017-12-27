@@ -77,7 +77,7 @@ class ServerProxy;
 
 // ----------------------------------------------------------------------------
 
-static const nsecs_t kDefaultStandbyTimeInNsecs = seconds(3);
+static const nsecs_t kDefaultStandbyTimeInNsecs = milliseconds(500);
 
 
 // Max shared memory size for audio tracks and audio records per client process
