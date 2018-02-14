@@ -206,6 +206,9 @@ enum {
                                    // color Matrix, value defined by ColorAspects.MatrixCoeffs.
     kKeyTemporalLayerId  = 'iLyr', // int32_t, temporal layer-id. 0-based (0 => base layer)
     kKeyTemporalLayerCount = 'cLyr', // int32_t, number of temporal layers encoded
+    //add for ffmpegExtractor
+    kKeyExtraData       = 'extr', //raw data
+    kKeyIsMbaff         = 'mbaf', // int32_t
 };
 
 enum {
