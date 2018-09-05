@@ -205,6 +205,13 @@ player_type MediaPlayerFactory::getPlayerType(const sp<IMediaPlayer>& client,
                                               int fd,
                                               int64_t offset,
                                               int64_t length) {
+    char value[500];
+    char value1[500];
+    property_get("media.video.rk", value, "0");
+    property_get("media.video.player", value1, "0");
+    if(atoi(value) > 0 && atoi(value1) > 0){
+        return NU_PLAYER;
+    }
 #ifdef USE_FFPLAYER 
     String8 filePath;
     getFileName(fd,&filePath);

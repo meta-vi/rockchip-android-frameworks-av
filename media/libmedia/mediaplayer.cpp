@@ -23,7 +23,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
 #include <utils/Log.h>
 
 #include <binder/IServiceManager.h>
@@ -33,6 +32,7 @@
 
 #include <media/mediaplayer.h>
 #include <media/AudioResamplerPublic.h>
+#include <media/mediametadataretriever.h>
 #include <media/AudioSystem.h>
 #include <media/AVSyncSettings.h>
 #include <media/IDataSource.h>
@@ -44,6 +44,7 @@
 
 #include <system/audio.h>
 #include <system/window.h>
+#include <cutils/properties.h>
 
 namespace android {
 
@@ -72,6 +73,8 @@ MediaPlayer::MediaPlayer()
 MediaPlayer::~MediaPlayer()
 {
     ALOGV("destructor");
+    property_set("media.video.player","0");
+    property_set("media.video.rk","0");
     if (mAudioAttributesParcel != NULL) {
         delete mAudioAttributesParcel;
         mAudioAttributesParcel = NULL;
@@ -168,6 +171,14 @@ status_t MediaPlayer::setDataSource(
 status_t MediaPlayer::setDataSource(int fd, int64_t offset, int64_t length)
 {
     ALOGV("setDataSource(%d, %" PRId64 ", %" PRId64 ")", fd, offset, length);
+    property_set("media.video.player","1");
+    MediaMetadataRetriever* retriever = new MediaMetadataRetriever();
+    retriever->setDataSource(fd, offset, length);
+    retriever->getFrameAtTime(0,0);
+    if(retriever){
+        delete(retriever);
+        retriever = NULL;
+    }
     status_t err = UNKNOWN_ERROR;
     const sp<IMediaPlayerService> service(getMediaPlayerService());
     if (service != 0) {
