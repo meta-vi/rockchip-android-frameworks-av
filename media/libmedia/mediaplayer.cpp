@@ -148,6 +148,51 @@ status_t MediaPlayer::attachNewPlayer(const sp<IMediaPlayer>& player)
     return err;
 }
 
+bool MediaPlayer::isMovFile(int fd)
+{
+    if (fd) {
+        char symName[40] = {0};
+        char fileName[256] = {0};
+	char *pos =NULL,*tmp=NULL;
+	//char postfix[4] ={0};
+	int n =0;
+        snprintf(symName, sizeof(symName), "/proc/%d/fd/%d", getpid(), fd);
+
+        if (readlink( symName, fileName, (sizeof(fileName) - 1)) != -1 ) {
+            ALOGV("printFileName fd(%d) -> %s", fd, fileName);
+
+	    //first check if file name including mov
+	    //n = strcspn(fileName, ".mov");
+
+	    //if postfix lenth < 4 .return false
+	    n =  strlen(fileName);
+	    if(n< 4)
+	    {
+		return false;
+	    }
+
+	    tmp = fileName;
+	    pos =  tmp + n -1;// pos point to the string end
+	    //search .
+	    while(*pos!='.' && pos!=tmp) pos--;
+	    ALOGV(" isMovFile pos= %s  n=%d   ", pos, n );
+	    n =  strlen(pos);
+	    if (n != 4)
+	    {
+		return  false;
+	    }
+
+	    if(!strcasecmp(pos, ".mov") ||!strcasecmp(pos, ".MOV") )
+	    {
+		ALOGE(" disabled  mov file");
+		return true;
+	    }
+
+	}
+    }
+    return false;
+}
+
 status_t MediaPlayer::setDataSource(
         const sp<IMediaHTTPService> &httpService,
         const char *url, const KeyedVector<String8, String8> *headers)
@@ -180,6 +225,10 @@ status_t MediaPlayer::setDataSource(int fd, int64_t offset, int64_t length)
         retriever = NULL;
     }
     status_t err = UNKNOWN_ERROR;
+    if (isMovFile(fd)) {
+	ALOGE("Not supported Mov File!");
+	return err;
+    }
     const sp<IMediaPlayerService> service(getMediaPlayerService());
     if (service != 0) {
         sp<IMediaPlayer> player(service->create(this, mAudioSessionId));

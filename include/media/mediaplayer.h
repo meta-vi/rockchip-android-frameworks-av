@@ -273,6 +273,7 @@ private:
             status_t        reset_l();
             status_t        doSetRetransmitEndpoint(const sp<IMediaPlayer>& player);
             status_t        checkStateForKeySet_l(int key);
+            bool            isMovFile(int fd);
 
     sp<IMediaPlayer>            mPlayer;
     thread_id_t                 mLockThreadId;
