@@ -24,12 +24,17 @@
 #include <binder/IServiceManager.h>
 #include <utils/Log.h>
 #include "RegisterExtensions.h"
+#include <hidl/HidlSupport.h>
+#include <hidl/HidlTransportSupport.h>
+#include <hidl/LegacySupport.h>
+#include <hidl/Status.h>
 
 // from LOCAL_C_INCLUDES
 #include "MediaPlayerService.h"
 #include "ResourceManagerService.h"
 
 using namespace android;
+using android::hardware::configureRpcThreadpool;
 
 int main(int argc __unused, char **argv __unused)
 {
@@ -41,6 +46,7 @@ int main(int argc __unused, char **argv __unused)
     AIcu_initializeIcuOrDie();
     MediaPlayerService::instantiate();
     ResourceManagerService::instantiate();
+    configureRpcThreadpool(4, true /* callerWillJoin */);
     registerExtensions();
     ProcessState::self()->startThreadPool();
     IPCThreadState::self()->joinThreadPool();
