@@ -37,6 +37,7 @@ cc_library_shared {
         "libstagefright_foundation",
         "libstagefright_httplive",
         "libutils",
+        "librockit_client@1.0",
     ],
 
     header_libs: [
@@ -54,6 +55,7 @@ cc_library_shared {
     include_dirs: [
         "frameworks/av/media/libstagefright/rtsp",
         "frameworks/av/media/libstagefright/webm",
+        "vendor/rockchip/hardware/interfaces/rockit/hidl/client/include"
     ],
 
     local_include_dirs: ["include"],
