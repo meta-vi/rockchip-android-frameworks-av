@@ -82,8 +82,15 @@ status_t MediaPlayerFactory::registerFactory_l(IFactory* factory,
 }
 
 static player_type getDefaultPlayerType() {
+    char value[PROPERTY_VALUE_MAX];
+    if (property_get("vendor.cts_gts.status", value, NULL) && !strcasecmp("true", value)){
+        return NU_PLAYER;
+    }
+
+    if (property_get("vendor.use_nuplayer", value, NULL) && !strcasecmp("true", value)) {
+        return NU_PLAYER;
+    }
     return ROCKIT_PLAYER;
-    //return NU_PLAYER;
 }
 
 status_t MediaPlayerFactory::registerFactory(IFactory* factory,
