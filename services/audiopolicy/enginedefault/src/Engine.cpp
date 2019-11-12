@@ -33,6 +33,7 @@
 #include <policy.h>
 #include <utils/String8.h>
 #include <utils/Log.h>
+#include <cutils/properties.h>
 
 namespace android
 {
@@ -607,7 +608,10 @@ audio_devices_t Engine::getDeviceForInputSource(audio_source_t inputSource) cons
         }
         break;
     case AUDIO_SOURCE_CAMCORDER:
-        if (availableDeviceTypes & AUDIO_DEVICE_IN_BACK_MIC) {
+        if ((availableDeviceTypes & AUDIO_DEVICE_IN_HDMI) &&
+                property_get_bool("media.audio.hdmiin", false)) {
+            device = AUDIO_DEVICE_IN_HDMI;
+        } else if (availableDeviceTypes & AUDIO_DEVICE_IN_BACK_MIC) {
             device = AUDIO_DEVICE_IN_BACK_MIC;
         } else if (availableDeviceTypes & AUDIO_DEVICE_IN_BUILTIN_MIC) {
             device = AUDIO_DEVICE_IN_BUILTIN_MIC;
