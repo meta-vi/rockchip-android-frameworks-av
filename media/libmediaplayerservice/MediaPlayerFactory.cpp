@@ -83,11 +83,13 @@ status_t MediaPlayerFactory::registerFactory_l(IFactory* factory,
 
 static player_type getDefaultPlayerType() {
     char value[PROPERTY_VALUE_MAX];
-    if (property_get("cts_gts.status", value, NULL) && !strcasecmp("true", value)){
+    if (property_get("cts_gts.status", value, NULL)
+        && !strcasecmp("true", value)){
         return NU_PLAYER;
     }
 
-    if (property_get("cts_gts.use_nuplayer", value, NULL) && !strcasecmp("true", value)) {
+    if (property_get("cts_gts.use_nuplayer", value, NULL)
+        && !strcasecmp("true", value)) {
         return NU_PLAYER;
     }
     return ROCKIT_PLAYER;
@@ -281,13 +283,33 @@ class RockitPlayerFactory : public MediaPlayerFactory::IFactory {
     virtual float scoreFactory(const sp<IMediaPlayer>& /*client*/,
                                const char* url,
                                float curScore) {
-        (void)url;
-        static const float kOurScore = 0.0;
+        static const float kOurScore = 0.9;
 
         if (kOurScore <= curScore)
             return 0.0;
 
-        return kOurScore;
+        if (!strncasecmp("http://", url, 7)
+                || !strncasecmp("https://", url, 8)
+                || !strncasecmp("file://", url, 7)) {
+            char value[PROPERTY_VALUE_MAX];
+            if (property_get("cts_gts.status", value, NULL)
+                && !strcasecmp("true", value)){
+                return 0.0;
+            }
+
+            if (property_get("cts_gts.use_nuplayer", value, NULL)
+                && !strcasecmp("true", value)) {
+                return 0.0;
+            }
+
+            return kOurScore;
+        }
+
+        if (!strncasecmp("rtsp://", url, 7)) {
+            return kOurScore;
+        }
+
+        return 0.0;
     }
 
     virtual float scoreFactory(const sp<IMediaPlayer>& /*client*/,
