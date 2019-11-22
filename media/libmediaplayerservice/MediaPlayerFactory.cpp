@@ -132,8 +132,6 @@ void MediaPlayerFactory::unregisterFactory(player_type type) {
 
 player_type MediaPlayerFactory::getPlayerType(const sp<IMediaPlayer>& client,
                                               const char* url) {
-    String8 filePath;
-    getFileName(fd,&filePath);
     if (strstr(url,".apk") || strstr(url,".ogg")) {
         return NU_PLAYER;
     }
