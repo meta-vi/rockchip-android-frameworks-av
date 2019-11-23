@@ -419,6 +419,7 @@ status_t MediaPlayerService::dump(int fd, const Vector<String16>& args)
     const size_t SIZE = 256;
     char buffer[SIZE];
     String8 result;
+    bool dumpScan = false;
     SortedVector< sp<Client> > clients; //to serialise the mutex unlock & client destruction.
     SortedVector< sp<MediaRecorderClient> > mediaRecorderClients;
 
@@ -528,8 +529,11 @@ status_t MediaPlayerService::dump(int fd, const Vector<String16>& args)
                 dumpMem = true;
             } else if (args[i] == String16("--unreachable")) {
                 unreachableMemory = true;
+            } else if (args[i] == String16("--scanable")) {
+                dumpScan = true;
             }
         }
+
         if (dumpMem) {
             result.append("\nDumping memory:\n");
             std::string s = dumpMemoryAddresses(100 /* limit */);
@@ -542,6 +546,19 @@ status_t MediaPlayerService::dump(int fd, const Vector<String16>& args)
             result.append(s.c_str(), s.size());
         }
     }
+
+    //no mLock outside
+    if (dumpScan) {
+        size_t size = getMediaClientSize();
+        snprintf(buffer, 255, "\nMedia Client Num(%zu)", size);
+        result.append(buffer);
+        if (size > 0) {
+            result.append(" MScanable(0)\n");
+        } else {
+            result.append(" MScanable(1)\n");
+        }
+    }
+
     write(fd, result.string(), result.size());
     return NO_ERROR;
 }
@@ -556,6 +573,27 @@ bool MediaPlayerService::hasClient(wp<Client> client)
 {
     Mutex::Autolock lock(mLock);
     return mClients.indexOf(client) != NAME_NOT_FOUND;
+}
+
+bool MediaPlayerService::hasMediaClient()
+{
+    size_t size = getMediaClientSize();
+    return (size > 0);
+}
+
+size_t MediaPlayerService::getMediaClientSize()
+{
+    size_t clientSize = 0;
+
+    Mutex::Autolock lock(mLock);
+    for (size_t i = 0; i < mClients.size(); i++) {
+        sp<Client> c = mClients[i].promote();
+        if (c != NULL && c->isVideoClientAlive()) {
+            clientSize++;
+        }
+    }
+
+    return clientSize;
 }
 
 MediaPlayerService::Client::Client(
@@ -575,6 +613,7 @@ MediaPlayerService::Client::Client(
     mRetransmitEndpointValid = false;
     mAudioAttributes = NULL;
     mListener = new Listener(this);
+    mMaybeVideoAlive = false;
 
 #if CALLBACK_ANTAGONIZER
     ALOGD("create Antagonizer");
@@ -1069,6 +1108,7 @@ status_t MediaPlayerService::Client::prepareAsync()
 status_t MediaPlayerService::Client::start()
 {
     ALOGV("[%d] start", mConnId);
+    mMaybeVideoAlive = (mConnectedWindow.get() != NULL);
     sp<MediaPlayerBase> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     p->setLooping(mLoop);
@@ -1078,6 +1118,7 @@ status_t MediaPlayerService::Client::start()
 status_t MediaPlayerService::Client::stop()
 {
     ALOGV("[%d] stop", mConnId);
+    mMaybeVideoAlive = false;
     sp<MediaPlayerBase> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
     return p->stop();
@@ -1249,6 +1290,7 @@ status_t MediaPlayerService::Client::seekTo(int msec, MediaPlayerSeekMode mode)
 status_t MediaPlayerService::Client::reset()
 {
     ALOGV("[%d] reset", mConnId);
+    mMaybeVideoAlive = false;
     mRetransmitEndpointValid = false;
     sp<MediaPlayerBase> p = getPlayer();
     if (p == 0) return UNKNOWN_ERROR;
@@ -1457,6 +1499,15 @@ void MediaPlayerService::Client::notify(
         // Update the list of metadata that have changed. getMetadata
         // also access mMetadataUpdated and clears it.
         addNewMetadataUpdate(metadata_type);
+    }
+
+    //should be exist video track
+    if (MEDIA_SET_VIDEO_SIZE == msg) {
+        if (ext1 == 0 || ext2 == 0) {
+            mMaybeVideoAlive = false;
+        } else {
+            mMaybeVideoAlive = true;
+        }
     }
 
     if (c != NULL) {

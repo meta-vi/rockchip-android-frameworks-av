@@ -243,6 +243,9 @@ public:
 
             void                removeClient(const wp<Client>& client);
             bool                hasClient(wp<Client> client);
+    // API for the Media Scanner to check whether has video playback
+    virtual bool                hasMediaClient();
+    virtual size_t              getMediaClientSize();
 
     enum {
         MEDIASERVER_PROCESS_DEATH = 0,
@@ -378,6 +381,7 @@ private:
         virtual status_t        dump(int fd, const Vector<String16>& args);
 
                 audio_session_t getAudioSessionId() { return mAudioSessionId; }
+                bool            isVideoClientAlive() { return mMaybeVideoAlive; }
         // Modular DRM
         virtual status_t prepareDrm(const uint8_t uuid[16], const Vector<uint8_t>& drmSessionId);
         virtual status_t releaseDrm();
@@ -478,6 +482,7 @@ private:
 
         std::vector<DeathNotifier> mDeathNotifiers;
         sp<AudioDeviceUpdatedNotifier> mAudioDeviceUpdatedListener;
+        bool mMaybeVideoAlive;
 #if CALLBACK_ANTAGONIZER
                     Antagonizer*                  mAntagonizer;
 #endif
