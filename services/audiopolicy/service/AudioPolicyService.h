@@ -439,6 +439,7 @@ private:
             DYN_POLICY_MIX_STATE_UPDATE,
             RECORDING_CONFIGURATION_UPDATE,
             SET_EFFECT_SUSPENDED,
+            REGISTER_UID,
         };
 
         AudioCommandThread (String8 name, const wp<AudioPolicyService>& service);
@@ -485,6 +486,7 @@ private:
                                                           audio_session_t sessionId,
                                                           bool suspended);
                     void        insertCommand_l(AudioCommand *command, int delayMs = 0);
+                    void        registerUidCommand(sp<UidPolicy> uidpolicy);
     private:
         class AudioCommandData;
 
@@ -511,6 +513,12 @@ private:
             virtual ~AudioCommandData() {}
         protected:
             AudioCommandData() {}
+        };
+
+        class RegisterData : public AudioCommandData {
+        public:
+           sp<UidPolicy> mUidPolicy;
+           sp<SensorPrivacyPolicy> mSensorPrivacyPolicy;
         };
 
         class VolumeData : public AudioCommandData {

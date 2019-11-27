@@ -82,12 +82,19 @@ void AudioPolicyService::onFirstRef()
         Mutex::Autolock _l(mLock);
         mAudioPolicyEffects = audioPolicyEffects;
     }
-
     mUidPolicy = new UidPolicy(this);
-    mUidPolicy->registerSelf();
+    // for bootvide
+    char decrypt[PROPERTY_VALUE_MAX];
+    property_get("persist.sys.bootvideo.enable",decrypt, "false");
+    if(!strcmp(decrypt, "true")) {
+        mOutputCommandThread->registerUidCommand(mUidPolicy);
+        ALOGD("bootvideo enable,delay run Policy registerSelf");
+    }else{
+        mUidPolicy->registerSelf();
+        mSensorPrivacyPolicy = new SensorPrivacyPolicy(this);
+        mSensorPrivacyPolicy->registerSelf();
+    }
 
-    mSensorPrivacyPolicy = new SensorPrivacyPolicy(this);
-    mSensorPrivacyPolicy->registerSelf();
 }
 
 AudioPolicyService::~AudioPolicyService()
@@ -104,8 +111,10 @@ AudioPolicyService::~AudioPolicyService()
     mUidPolicy->unregisterSelf();
     mUidPolicy.clear();
 
-    mSensorPrivacyPolicy->unregisterSelf();
-    mSensorPrivacyPolicy.clear();
+    if(mSensorPrivacyPolicy != NULL ){
+       mSensorPrivacyPolicy->unregisterSelf();
+       mSensorPrivacyPolicy.clear();
+    }
 }
 
 // A notification client is always registered by AudioSystem when the client process
@@ -444,6 +453,14 @@ void AudioPolicyService::updateUidStates_l()
     bool rttCallActive =
             (mPhoneState == AUDIO_MODE_IN_CALL || mPhoneState == AUDIO_MODE_IN_COMMUNICATION)
             && mUidPolicy->isRttEnabled();
+
+    // for boot video,delay init SensorPrivacyPolicy to save 4s time.
+    char decrypt[PROPERTY_VALUE_MAX];
+    property_get("persist.sys.bootvideo.enable",decrypt, "false");
+    if(!strcmp(decrypt, "true")) {
+        mSensorPrivacyPolicy = new SensorPrivacyPolicy(this);
+        mSensorPrivacyPolicy->registerSelf();
+    }//boot video end.
 
     // if Sensor Privacy is enabled then all recordings should be silenced.
     if (mSensorPrivacyPolicy->isSensorPrivacyEnabled()) {
@@ -1234,6 +1251,10 @@ bool AudioPolicyService::AudioCommandThread::threadLoop()
                         mLock.lock();
                     }
                     } break;
+                case REGISTER_UID: {
+                    RegisterData *data = (RegisterData *)command->mParam.get();
+                    data->mUidPolicy->registerSelf();
+                } break;
 
                 default:
                     ALOGW("AudioCommandThread() unknown command %d", command->mCommand);
@@ -1318,6 +1339,16 @@ status_t AudioPolicyService::AudioCommandThread::dump(int fd)
     if (locked) mLock.unlock();
 
     return NO_ERROR;
+}
+
+void AudioPolicyService::AudioCommandThread::registerUidCommand(sp<UidPolicy> uidpolicy)
+{
+    sp<AudioCommand> command = new AudioCommand();
+    command->mCommand = REGISTER_UID;
+    sp<RegisterData> data = new RegisterData();
+    data->mUidPolicy = uidpolicy;
+    command->mParam = data;
+    sendCommand(command);
 }
 
 status_t AudioPolicyService::AudioCommandThread::volumeCommand(audio_stream_type_t stream,

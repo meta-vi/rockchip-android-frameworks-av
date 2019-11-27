@@ -27,6 +27,7 @@
 #include "EffectHalHidl.h"
 #include "StreamHalHidl.h"
 #include "VersionUtils.h"
+#include <cutils/properties.h> // for property_get
 
 using ::android::hardware::MQDescriptorSync;
 using ::android::hardware::Return;
@@ -228,6 +229,14 @@ status_t StreamHalHidl::getCachedBufferSize(size_t *size) {
 bool StreamHalHidl::requestHalThreadPriority(pid_t threadPid, pid_t threadId) {
     if (mHalThreadPriority == HAL_THREAD_PRIORITY_DEFAULT) {
         return true;
+    }
+    char value[PROPERTY_VALUE_MAX] = "";
+    property_get("persist.sys.bootvideo.enable",value, "false");
+    if(!strcmp(value, "true")) {
+        property_get("service.bootanim.exit", value, "1");
+        if (atoi(value) == 0){
+            return true;
+        }
     }
     int err = requestPriority(
             threadPid, threadId,
