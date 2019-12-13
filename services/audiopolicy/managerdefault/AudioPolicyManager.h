@@ -113,7 +113,7 @@ public:
         virtual void setSystemProperty(const char* property, const char* value);
         virtual status_t initCheck();
         virtual audio_io_handle_t getOutput(audio_stream_type_t stream);
-        status_t getOutputForAttr(const audio_attributes_t *attr,
+        virtual status_t getOutputForAttr(const audio_attributes_t *attr,
                                   audio_io_handle_t *output,
                                   audio_session_t session,
                                   audio_stream_type_t *stream,
