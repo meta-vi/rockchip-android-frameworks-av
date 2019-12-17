@@ -83,10 +83,12 @@ private:
         Queue()
             : mReadPendingSince(0),
               mPaused(false),
-              mPulling(false) { }
+              mPulling(false),
+              mReadEos(false) {}
         int64_t mReadPendingSince;
         bool mPaused;
         bool mPulling;
+        bool mReadEos;
         Vector<MediaBufferBase *> mReadBuffers;
 
         void flush();
@@ -189,16 +191,21 @@ status_t MediaCodecSource::Puller::start(const sp<MetaData> &meta, const sp<AMes
 
 void MediaCodecSource::Puller::stop() {
     bool interrupt = false;
+    bool readEos = false;
+    int64_t readPendingSince = 0;
     {
         // mark stopping before actually reaching kWhatStop on the looper, so the pulling will
         // stop.
         Mutexed<Queue>::Locked queue(mQueue);
         queue->mPulling = false;
+        readEos = queue->mReadEos;
+        readPendingSince = queue->mReadPendingSince;
         interrupt = queue->mReadPendingSince && (queue->mReadPendingSince < ALooper::GetNowUs() - 1000000);
         queue->flush(); // flush any unprocessed pulled buffers
     }
 
-    if (interrupt) {
+    if (interrupt || (!readPendingSince && readEos))
+    {
         interruptSource();
     }
 }
@@ -314,6 +321,7 @@ void MediaCodecSource::Puller::onMessageReceived(const sp<AMessage> &msg) {
                     msg->post(); // if simply paused, keep pulling source
                     break;
                 } else if (err == ERROR_END_OF_STREAM) {
+                    queue->mReadEos = true;
                     ALOGV("stream ended, mbuf %p", mbuf);
                 } else if (err != OK) {
                     ALOGE("error %d reading stream.", err);
