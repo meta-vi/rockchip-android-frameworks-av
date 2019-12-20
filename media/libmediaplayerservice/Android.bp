@@ -1,3 +1,24 @@
+bootstrap_go_package {
+    name: "soong-libRKmediaplayerservice",
+    pkgPath: "android/soong/libRKmediaplayerservice",
+    deps: [
+        "blueprint",
+        "blueprint-pathtools",
+        "soong",
+        "soong-android",
+        "soong-cc",
+        "soong-genrule",
+    ],
+    srcs: [
+        "Android.go",
+    ],
+    pluginFor: ["soong_build"],
+}
+
+cc_libRKmediaplayerservice {
+    name: "cc_libRKmediaplayerservice",
+}
+
 cc_library_shared {
 
     srcs: [
@@ -11,7 +32,9 @@ cc_library_shared {
         "TestPlayerStub.cpp",
         "RemoteDisplay.cpp",
     ],
-
+    defaults: [
+        "cc_libRKmediaplayerservice",
+    ],
     shared_libs: [
         "android.hardware.media.c2@1.0",
         "android.hardware.media.omx@1.0",
@@ -38,7 +61,6 @@ cc_library_shared {
         "libstagefright_foundation",
         "libstagefright_httplive",
         "libutils",
-        "librockit_client@1.0",
         "libstagefright_wfd",
     ],
 
@@ -57,8 +79,9 @@ cc_library_shared {
     include_dirs: [
         "frameworks/av/media/libstagefright/rtsp",
         "frameworks/av/media/libstagefright/webm",
+        "frameworks/av/media/libstagefright/wifi-display",
         "vendor/rockchip/hardware/interfaces/rockit/hidl/client/include",
-        "frameworks/av/media/libstagefright/wifi-display"
+        "vendor/rockchip/hardware/interfaces/rockit/direct/include",
     ],
 
     local_include_dirs: ["include"],
