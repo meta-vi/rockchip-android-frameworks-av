@@ -88,7 +88,7 @@ static player_type getDefaultPlayerType() {
         return NU_PLAYER;
     }
 
-    if (property_get("cts_gts.use_nuplayer", value, NULL)
+    if (property_get("use_nuplayer", value, NULL)
         && !strcasecmp("true", value)) {
         return NU_PLAYER;
     }
@@ -149,6 +149,10 @@ player_type MediaPlayerFactory::getPlayerType(const sp<IMediaPlayer>& client,
         || strstr(filePath.string(), "notification_sound_cache")
         || strstr(filePath.string(), "ringtone_cache")
         || strstr(filePath.string(), "alarm_alert_cache")) {
+        return NU_PLAYER;
+    }
+
+    if (strstr(filePath.string(),".mid")) {
         return NU_PLAYER;
     }
     GET_PLAYER_TYPE_IMPL(client, fd, offset, length);
@@ -300,7 +304,7 @@ class RockitPlayerFactory : public MediaPlayerFactory::IFactory {
                 return 0.0;
             }
 
-            if (property_get("cts_gts.use_nuplayer", value, NULL)
+            if (property_get("use_nuplayer", value, NULL)
                 && !strcasecmp("true", value)) {
                 return 0.0;
             }
