@@ -30,7 +30,7 @@ func AddMediaplayerserviceShardLibs(ctx android.LoadHookContext) {
 
 func getPlatformLibname(ctx android.BaseContext) (string) {
     var interface_version string = "librockit_client@1.0"
-    if (strings.EqualFold(ctx.AConfig().Getenv("TARGET_BOARD_PLATFORM"),"rk3326") || strings.EqualFold(ctx.AConfig().Getenv("TARGET_BOARD_PLATFORM"),"rk3126c") || strings.EqualFold(ctx.AConfig().Getenv("TARGET_BOARD_PLATFORM"),"rk3399")) {
+    if (strings.EqualFold(ctx.AConfig().Getenv("TARGET_BOARD_PLATFORM"),"rk3326") || strings.EqualFold(ctx.AConfig().Getenv("TARGET_BOARD_PLATFORM"),"rk3126c") || strings.EqualFold(ctx.AConfig().Getenv("TARGET_BOARD_PLATFORM"),"rk3399") || strings.EqualFold(ctx.AConfig().Getenv("TARGET_BOARD_PLATFORM"),"rk3399pro")) {
         interface_version = "librockit_interface"
     }
     fmt.Println("PlatformLibname: " + interface_version)
