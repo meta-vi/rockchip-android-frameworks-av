@@ -3382,6 +3382,23 @@ status_t ACodec::setupVideoDecoder(
         return INVALID_OPERATION;
     }
 
+    int32_t codecProfile;
+    if (!haveNativeWindow && msg->findInt32("codecProfile", &codecProfile)) {
+        OMX_INDEXTYPE index;
+        status_t err;
+        err = mOMXNode->getExtensionIndex("OMX.rk.index.decoder.extension.thumbNailcodecProfile", &index);
+
+        if (err == OK) {
+            OMX_PARAM_U32TYPE params;
+            InitOMXParams(&params);
+            params.nU32 = codecProfile;
+
+            err = mOMXNode->setParameter(index, &params, sizeof(params));
+            if(err == OK)
+                ALOGD("mOMXNode set thumbnail codecprofile %d",codecProfile);
+        }
+    }
+
     OMX_VIDEO_CODINGTYPE compressionFormat;
     status_t err = GetVideoCodingTypeFromMime(mime, &compressionFormat);
 

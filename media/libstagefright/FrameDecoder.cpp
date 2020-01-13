@@ -35,12 +35,14 @@
 #include <media/stagefright/MediaErrors.h>
 #include <media/stagefright/Utils.h>
 #include <private/media/VideoFrame.h>
+#include <media/openmax/OMX_VideoExt.h>
 #include <utils/Log.h>
 
 namespace android {
 
 static const int64_t kBufferTimeOutUs = 10000LL; // 10 msec
 static const size_t kRetryCount = 50; // must be >0
+static const char thumbnail_dump_path[] = "/data/local/traces/thumbnail_dump.yuv";
 
 sp<IMemory> allocVideoFrame(const sp<MetaData>& trackMeta,
         int32_t width, int32_t height, int32_t tileWidth, int32_t tileHeight,
@@ -207,6 +209,8 @@ status_t FrameDecoder::init(
         ALOGE("video format or seek mode not supported");
         return ERROR_UNSUPPORTED;
     }
+
+    videoFormat->findInt32("profile", &mCodecProfile); // get codec profile in order to distinguish between 8bit and 10bit
 
     status_t err;
     sp<ALooper> looper = new ALooper;
@@ -408,7 +412,15 @@ VideoFrameDecoder::VideoFrameDecoder(
       mSeekMode(MediaSource::ReadOptions::SEEK_PREVIOUS_SYNC),
       mTargetTimeUs(-1LL),
       mNumFrames(0),
-      mNumFramesDecoded(0) {
+      mNumFramesDecoded(0),
+      mYuvFile(NULL) {
+
+    char value[PROPERTY_VALUE_MAX];
+    if (property_get("media.stagefright.thumbnail.dump", value, NULL)
+        && !strcasecmp("true", value)) {
+        mYuvFile = fopen(thumbnail_dump_path, "w+b");
+        ALOGI("open %s %p for dump thumbnail",thumbnail_dump_path,mYuvFile);
+    }
 }
 
 sp<AMessage> VideoFrameDecoder::onGetFormatAndSeekOptions(
@@ -488,11 +500,66 @@ status_t VideoFrameDecoder::onInputReceived(
     return OK;
 }
 
+uint8_t VideoFrameDecoder::fetch_data(uint8_t *line, uint32_t num) {
+    uint32_t offset = 0;
+    uint32_t value = 0;
+
+    offset = (num * 2) & 7;
+    value = (line[num * 10 / 8] >> offset) | (line[num * 10 / 8 + 1] << (8 - offset));
+
+    value = (value & 0x3ff) >> 2;
+    return (uint8_t)value;
+}
+
+status_t VideoFrameDecoder::convert10bitTo8bit(uint8_t *src, uint8_t *dst,uint32_t width, uint32_t height) {
+    uint8_t *srcBase = src;
+    uint8_t *dstBase = dst;
+    uint32_t verStride = 0;
+    uint32_t horStride = 0;
+    uint32_t i = 0;
+    uint32_t j = 0;
+
+    const char *mime;
+    trackMeta()->findCString(kKeyMIMEType, &mime);
+
+    if (width * height > 1920 * 1080 || !strcasecmp(mime, MEDIA_MIMETYPE_VIDEO_HEVC)) {
+        horStride = ((width * 10 / 8 + 255) & (~255)) | (256);
+        verStride = (height + 15) & (~15);
+    } else {
+        horStride = ((width * 10 / 8) + 15 & (~15));
+        verStride = (height + 15) & (~15);
+    }
+
+    ALOGV("%s mime = %s width = %d height = %d horStride = %d verStride = %d",__func__,mime,width,height,horStride,verStride);
+
+    for (i = 0; i < height; i++) {
+        for (j = 0; j < width; j++)
+            dst[j] = fetch_data(src, j);
+        dst += width;
+        src += horStride;
+    }
+
+    src = srcBase + verStride * horStride;
+    dst = dstBase + width * height;
+
+    for (i = 0; i < height / 2; i++) {
+        for (j = 0; j < width; j++)
+            dst[j] = fetch_data(src, j);
+        dst += width;
+        src += horStride;
+    }
+
+    return OK;
+}
+
 status_t VideoFrameDecoder::onOutputReceived(
         const sp<MediaCodecBuffer> &videoFrameBuffer,
         const sp<AMessage> &outputFormat,
         int64_t timeUs, bool *done) {
     bool shouldOutput = (mTargetTimeUs < 0LL) || (timeUs >= mTargetTimeUs);
+    uint8_t *convertAddr = NULL;
+    uint8_t *yuvAddr = NULL;
+    uint8_t *frameAddr = videoFrameBuffer->data();
 
     // If this is not the target frame, skip color convert.
     if (!shouldOutput) {
@@ -547,14 +614,43 @@ status_t VideoFrameDecoder::onOutputReceived(
     }
     converter.setSrcColorSpace(standard, range, transfer);
 
+    const char *mime;
+    trackMeta()->findCString(kKeyMIMEType, &mime);
+
     if (converter.isValid()) {
+        if ((mCodecProfile == OMX_VIDEO_AVCProfileHigh10 && !strcasecmp(mime, MEDIA_MIMETYPE_VIDEO_AVC))
+            || ((mCodecProfile == OMX_VIDEO_HEVCProfileMain10 || mCodecProfile == OMX_VIDEO_HEVCProfileMain10HDR10)
+            && !strcasecmp(mime, MEDIA_MIMETYPE_VIDEO_HEVC))) {
+            yuvAddr = (uint8_t *)malloc(width * height * 3 / 2);
+            if (yuvAddr == NULL) {
+                ALOGE("fail to malloc yuv address check your device memory!!!");
+                return ERROR_UNSUPPORTED;
+            }
+            convert10bitTo8bit(frameAddr, yuvAddr, width, height);
+        }
+
+        convertAddr = (yuvAddr != NULL) ? yuvAddr : frameAddr;
+        if (mYuvFile) {
+            int32_t size = width * height * 3 / 2;
+            fwrite(convertAddr, 1, size, mYuvFile);
+            fflush(mYuvFile);
+            ALOGI("stagefright dump yuv [%d x %d] size %d stride %d",width,height,size,stride);
+            fclose(mYuvFile);
+            mYuvFile = NULL;
+        }
         converter.convert(
-                (const uint8_t *)videoFrameBuffer->data(),
+                convertAddr,
                 width, height, stride,
                 crop_left, crop_top, crop_right, crop_bottom,
                 frame->getFlattenedData(),
                 frame->mWidth, frame->mHeight, frame->mRowBytes,
                 crop_left, crop_top, crop_right, crop_bottom);
+
+        if (yuvAddr) {
+            free(yuvAddr);
+            yuvAddr = NULL;
+        }
+
         return OK;
     }
 

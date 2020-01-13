@@ -1044,8 +1044,8 @@ status_t MediaCodec::configure(
         uint32_t flags) {
     sp<AMessage> msg = new AMessage(kWhatConfigure, this);
 
+    int32_t profile = 0;
     if (mAnalyticsItem != NULL) {
-        int32_t profile = 0;
         if (format->findInt32("profile", &profile)) {
             mAnalyticsItem->setInt32(kCodecProfile, profile);
         }
@@ -1059,6 +1059,7 @@ status_t MediaCodec::configure(
     if (mIsVideo) {
         format->findInt32("width", &mVideoWidth);
         format->findInt32("height", &mVideoHeight);
+        format->setInt32("codecProfile", profile);
         if (!format->findInt32("rotation-degrees", &mRotationDegrees)) {
             mRotationDegrees = 0;
         }

@@ -54,6 +54,9 @@ struct FrameDecoder : public RefBase {
     static sp<IMemory> getMetadataOnly(
             const sp<MetaData> &trackMeta, int colorFormat, bool thumbnail = false);
 
+    int32_t mCodecProfile;
+
+
 protected:
     virtual ~FrameDecoder();
 
@@ -133,12 +136,16 @@ protected:
             int64_t timeUs,
             bool *done) override;
 
+    virtual uint8_t fetch_data(uint8_t *line, uint32_t num);
+    virtual status_t convert10bitTo8bit(uint8_t *src, uint8_t *dst,uint32_t width, uint32_t height);
+
 private:
     bool mIsAvcOrHevc;
     MediaSource::ReadOptions::SeekMode mSeekMode;
     int64_t mTargetTimeUs;
     size_t mNumFrames;
     size_t mNumFramesDecoded;
+    FILE * mYuvFile;
 };
 
 struct ImageDecoder : public FrameDecoder {
