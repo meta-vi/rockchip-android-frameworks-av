@@ -213,8 +213,11 @@ sp<IMemory> StagefrightMetadataRetriever::getImageInternal(
         trackMeta->setCString(kKeyMIMEType, mime);
     }
 
+    char pValue[PROPERTY_VALUE_MAX];
+    bool runCts = property_get("cts_gts.status", pValue, NULL)
+            && !strcasecmp("true", pValue);
     bool preferhw = property_get_bool(
-            "media.stagefright.thumbnail.prefer_hw_codecs", false);
+            "media.stagefright.thumbnail.prefer_hw_codecs", true) && !runCts;
     uint32_t flags = preferhw ? 0 : MediaCodecList::kPreferSoftwareCodecs;
     Vector<AString> matchingCodecs;
     MediaCodecList::findMatchingCodecs(
@@ -337,8 +340,11 @@ status_t StagefrightMetadataRetriever::getFrameInternal(
     const char *mime;
     CHECK(trackMeta->findCString(kKeyMIMEType, &mime));
 
+    char pValue[PROPERTY_VALUE_MAX];
+    bool runCts = property_get("cts_gts.status", pValue, NULL)
+            && !strcasecmp("true", pValue);
     bool preferhw = property_get_bool(
-            "media.stagefright.thumbnail.prefer_hw_codecs", false);
+            "media.stagefright.thumbnail.prefer_hw_codecs", true) && !runCts;
     uint32_t flags = preferhw ? 0 : MediaCodecList::kPreferSoftwareCodecs;
     Vector<AString> matchingCodecs;
     MediaCodecList::findMatchingCodecs(

@@ -461,8 +461,11 @@ sp<AMessage> VideoFrameDecoder::onGetFormatAndSeekOptions(
     }
 
     // TODO: Use Flexible color instead
+    char pValue[PROPERTY_VALUE_MAX];
+    bool runCts = property_get("cts_gts.status", pValue, NULL)
+        && !strcasecmp("true", pValue);
     bool preferhw = property_get_bool(
-        "media.stagefright.thumbnail.prefer_hw_codecs", false);
+        "media.stagefright.thumbnail.prefer_hw_codecs", true) && !runCts;
     if (preferhw)
         videoFormat->setInt32("color-format", OMX_COLOR_FormatYUV420SemiPlanar);
     else
