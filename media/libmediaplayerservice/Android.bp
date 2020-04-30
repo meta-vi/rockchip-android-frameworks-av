@@ -80,7 +80,8 @@ cc_library_shared {
         "frameworks/av/media/libstagefright/rtsp",
         "frameworks/av/media/libstagefright/webm",
         "frameworks/av/media/libstagefright/wifi-display",
-        "vendor/rockchip/hardware/interfaces/rockit/hidl/client/include",
+        "vendor/rockchip/hardware/interfaces/rockit/include",
+        "vendor/rockchip/hardware/interfaces/rockit/include/rt_base",
         "vendor/rockchip/hardware/interfaces/rockit/direct/include",
     ],
 
