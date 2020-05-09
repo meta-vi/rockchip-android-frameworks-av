@@ -579,7 +579,16 @@ audio_devices_t Engine::getDeviceForInputSource(audio_source_t inputSource) cons
             break;
 
         case AUDIO_POLICY_FORCE_SPEAKER:
-            if (availableDeviceTypes & AUDIO_DEVICE_IN_BACK_MIC) {
+            /*
+             * fix bug: hh@rock-chips
+             * if usb or wired headset devices is connected,
+             * using this device to record first.
+             */
+            if (availableDeviceTypes & AUDIO_DEVICE_IN_WIRED_HEADSET) {
+                device = AUDIO_DEVICE_IN_WIRED_HEADSET;
+            } else if (availableDeviceTypes & AUDIO_DEVICE_IN_USB_DEVICE) {
+                device = AUDIO_DEVICE_IN_USB_DEVICE;
+            } else if (availableDeviceTypes & AUDIO_DEVICE_IN_BACK_MIC) {
                 device = AUDIO_DEVICE_IN_BACK_MIC;
             } else if (availableDeviceTypes & AUDIO_DEVICE_IN_BUILTIN_MIC) {
                 device = AUDIO_DEVICE_IN_BUILTIN_MIC;
@@ -611,13 +620,15 @@ audio_devices_t Engine::getDeviceForInputSource(audio_source_t inputSource) cons
         if ((availableDeviceTypes & AUDIO_DEVICE_IN_HDMI) &&
                 property_get_bool("media.audio.hdmiin", false)) {
             device = AUDIO_DEVICE_IN_HDMI;
+        } else if (availableDeviceTypes & AUDIO_DEVICE_IN_USB_DEVICE) {
+            /*
+             * if usb mic is connected, use it first
+             */
+            device = AUDIO_DEVICE_IN_USB_DEVICE;
         } else if (availableDeviceTypes & AUDIO_DEVICE_IN_BACK_MIC) {
             device = AUDIO_DEVICE_IN_BACK_MIC;
         } else if (availableDeviceTypes & AUDIO_DEVICE_IN_BUILTIN_MIC) {
             device = AUDIO_DEVICE_IN_BUILTIN_MIC;
-        } else if (availableDeviceTypes & AUDIO_DEVICE_IN_USB_DEVICE) {
-            // This is specifically for a device without built-in mic
-            device = AUDIO_DEVICE_IN_USB_DEVICE;
         }
         break;
     case AUDIO_SOURCE_VOICE_DOWNLINK:
