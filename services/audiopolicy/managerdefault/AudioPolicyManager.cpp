@@ -1154,9 +1154,14 @@ audio_io_handle_t AudioPolicyManager::getOutputForDevices(
 
     // skip direct output selection if the request can obviously be attached to a mixed output
     // and not explicitly requested
+    /*
+     * fix bug by hh@rock-chips.com
+     * do not direct output pcm datas even if it's channels > 2
+     * if flags not set to AUDIO_OUTPUT_FLAG_DIRECT
+     */
     if (((*flags & AUDIO_OUTPUT_FLAG_DIRECT) == 0) &&
-            audio_is_linear_pcm(config->format) && config->sample_rate <= SAMPLE_RATE_HZ_MAX &&
-            audio_channel_count_from_out_mask(channelMask) <= 2) {
+            audio_is_linear_pcm(config->format) && config->sample_rate <= SAMPLE_RATE_HZ_MAX
+            /* && audio_channel_count_from_out_mask(channelMask) <= 2*/) {
         goto non_direct_output;
     }
 
