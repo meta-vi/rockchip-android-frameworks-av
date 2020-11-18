@@ -231,6 +231,10 @@ player_type MediaPlayerFactory::getPlayerType(const sp<IMediaPlayer>& client,
     if(strstr(filePath.string(),".mid")){
         return NU_PLAYER;
     }
+
+    if(strstr(filePath.string(),".wma") || strstr(filePath.string(),".wmv") || strstr(filePath.string(),".flv")){
+        return TEST_PLAYER;
+    }
 #endif
     GET_PLAYER_TYPE_IMPL(client, fd, offset, length);
 }
