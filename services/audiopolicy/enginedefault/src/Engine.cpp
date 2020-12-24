@@ -522,6 +522,10 @@ audio_devices_t Engine::getDeviceForStrategyInt(routing_strategy strategy,
             device3 |= (availableOutputDevicesType & AUDIO_DEVICE_OUT_AUX_LINE);
         }
 
+        if (device2 == AUDIO_DEVICE_OUT_USB_DEVICE) {
+	    device2 = AUDIO_DEVICE_OUT_SPEAKER;
+        }
+
         device2 |= device3;
         // device is DEVICE_OUT_SPEAKER if we come from case STRATEGY_SONIFICATION or
         // STRATEGY_ENFORCED_AUDIBLE, AUDIO_DEVICE_NONE otherwise
