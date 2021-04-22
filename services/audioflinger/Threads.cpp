@@ -5164,6 +5164,14 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::MixerThread::prepareTrac
             float vlf, vrf, vaf;   // in [0.0, 1.0] float format
             // read original volumes with volume control
             float v = masterVolume * mStreamTypes[track->streamType()].volume;
+
+            char value[PROPERTY_VALUE_MAX] = "";
+            property_get("service.bootanim.exit", value, "0");
+            if (atoi(value) == 0){
+                ALOGV("boot running now,audioflinger no need to control volume");
+                v = 1.0;
+            }
+
             // Always fetch volumeshaper volume to ensure state is updated.
             const sp<AudioTrackServerProxy> proxy = track->mAudioTrackServerProxy;
             const float vh = track->getVolumeHandler()->getVolume(
