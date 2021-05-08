@@ -5166,10 +5166,13 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::MixerThread::prepareTrac
             float v = masterVolume * mStreamTypes[track->streamType()].volume;
 
             char value[PROPERTY_VALUE_MAX] = "";
-            property_get("service.bootanim.exit", value, "0");
-            if (atoi(value) == 0){
-                ALOGV("boot running now,audioflinger no need to control volume");
-                v = 1.0;
+            property_get("persist.sys.bootvideo.enable",value, "false");
+            if(!strcmp(value, "true")) {
+                property_get("sys.bootvideo.closed", value, "1");
+                if (atoi(value) == 0){
+                    ALOGV("boot running now,audioflinger no need to control volume");
+                    v = 1.0;
+                }
             }
 
             // Always fetch volumeshaper volume to ensure state is updated.
