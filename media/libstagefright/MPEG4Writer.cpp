@@ -51,7 +51,7 @@
 
 #include "include/ESDS.h"
 #include "include/HevcUtils.h"
-
+#include <sched.h>
 #ifndef __predict_false
 #define __predict_false(exp) __builtin_expect((exp) != 0, 0)
 #endif
@@ -2723,6 +2723,9 @@ void MPEG4Writer::threadFunc() {
 
 status_t MPEG4Writer::startWriterThread() {
     ALOGV("startWriterThread");
+    int policy;
+    int max_priority,min_priority;
+    struct sched_param param;
 
     mDone = false;
     mIsFirstChunk = true;
@@ -2738,13 +2741,36 @@ status_t MPEG4Writer::startWriterThread() {
 
     pthread_attr_t attr;
     pthread_attr_init(&attr);
+    pthread_attr_setinheritsched(&attr,PTHREAD_EXPLICIT_SCHED);/*设置线程继承性*/
+    pthread_attr_getinheritsched(&attr,&policy); /*获得线程的继承性*/
+    if(policy==PTHREAD_EXPLICIT_SCHED)
+        ALOGI("Inheritsched:PTHREAD_EXPLICIT_SCHED\n");
+    if(policy==PTHREAD_INHERIT_SCHED)
+        ALOGI("Inheritsched:PTHREAD_INHERIT_SCHED\n");
+    pthread_attr_setschedpolicy(&attr,SCHED_FIFO);/*设置线程调度策略*/
+    pthread_attr_getschedpolicy(&attr,&policy);/*取得线程的调度策略*/
+    if(policy==SCHED_FIFO)
+        ALOGI("Schedpolicy:SCHED_FIFO\n");
+    if(policy==SCHED_RR)
+        ALOGI("Schedpolicy:SCHED_RR\n");
+    if(policy==SCHED_OTHER)
+        ALOGI("Schedpolicy:SCHED_OTHER\n");
+    max_priority =sched_get_priority_max(policy);/*获得系统支持的线程优先权的最大值*/
+
+    min_priority = sched_get_priority_min(policy);/* 获得系统支持的线程优先权的最小值*/
+    ALOGI("Max priority:%u\n",max_priority);
+    ALOGI("Min priority:%u\n",min_priority);
+    bzero((void*)&param, sizeof(param));
+    param.sched_priority=max_priority;
+    pthread_attr_setschedparam(&attr,&param);/*设置线程的调度参数*/
+    ALOGI("sched_priority:%u\n",param.sched_priority);/*获得线程的调度参数*/
+
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
     pthread_create(&mThread, &attr, ThreadWrapper, this);
     pthread_attr_destroy(&attr);
     mWriterThreadStarted = true;
     return OK;
 }
-
 
 status_t MPEG4Writer::Track::start(MetaData *params) {
     if (!mDone && mPaused) {
