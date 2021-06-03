@@ -63,6 +63,7 @@
 #include "include/SecureBuffer.h"
 #include "include/SharedMemoryBuffer.h"
 #include <media/stagefright/omx/OMXUtils.h>
+#include <cutils/properties.h>
 
 namespace android {
 
@@ -3469,6 +3470,27 @@ status_t ACodec::setupVideoDecoder(
                     return err;
                 }
             }
+        }
+    }
+
+    /*
+     * add codes for tell decoder the profile and level of input stream
+     * the fbc mode is force to set in gralloc in some profile(like profile10)
+     */
+    char value[PROPERTY_VALUE_MAX];
+    property_get("cts_gts.status", value, "");
+    if (strcasecmp(value, "true") != 0) {
+        int32_t profile = 0;
+        int32_t level = 0;
+        if (msg->findInt32("profile", &profile) || msg->findInt32("level", &level)) {
+            OMX_VIDEO_PARAM_PROFILELEVELTYPE params;
+            InitOMXParams(&params);
+            params.nPortIndex = kPortIndexInput;
+
+            params.eProfile = profile;
+            params.eLevel = level;
+
+            mOMXNode->setParameter((OMX_INDEXTYPE)OMX_IndexParamVideoProfileLevelCurrent, &params, sizeof(params));
         }
     }
 
