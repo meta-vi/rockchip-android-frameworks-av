@@ -157,6 +157,12 @@ player_type MediaPlayerFactory::getPlayerType(const sp<IMediaPlayer>& client,
         return NU_PLAYER;
     }
 
+    if (strstr(filePath.string(),".mvc")
+        || strstr(filePath.string(),".flv")
+        || strstr(filePath.string(),".mov")) {
+        return TEST_PLAYER;
+    }
+
     GET_PLAYER_TYPE_IMPL(client, fd, offset, length);
 }
 
