@@ -31,6 +31,7 @@
 
 #include "TestPlayerStub.h"
 #include "nuplayer/NuPlayerDriver.h"
+#include "RockitPlayerInterface.h"
 
 namespace android {
 
@@ -62,7 +63,8 @@ status_t MediaPlayerFactory::registerFactory_l(IFactory* factory,
 }
 
 static player_type getDefaultPlayerType() {
-    return NU_PLAYER;
+    return ROCKIT_PLAYER;
+    //return NU_PLAYER;
 }
 
 status_t MediaPlayerFactory::registerFactory(IFactory* factory,
@@ -75,6 +77,41 @@ void MediaPlayerFactory::unregisterFactory(player_type type) {
     Mutex::Autolock lock_(&sLock);
     sFactoryMap.removeItem(type);
 }
+
+class RockitPlayerFactory : public MediaPlayerFactory::IFactory {
+    public:
+    virtual float scoreFactory(const sp<IMediaPlayer>& /*client*/,
+                               const char* url,
+                               float curScore) {
+        (void)url;
+        static const float kOurScore = 0.0;
+
+        if (kOurScore <= curScore)
+            return 0.0;
+
+        return kOurScore;
+    }
+
+    virtual float scoreFactory(const sp<IMediaPlayer>& /*client*/,
+                               const sp<IStreamSource>& /*source*/,
+                               float /*curScore*/) {
+        return 0.0;
+    }
+
+    virtual float scoreFactory(const sp<IMediaPlayer>& /*client*/,
+                               const sp<DataSource>& /*source*/,
+                               float /*curScore*/) {
+        // Rockit player supports setting a DataSource source directly.
+        return 0.0;
+    }
+
+    virtual sp<MediaPlayerBase> createPlayer(pid_t pid) {
+        (void)pid;
+        ALOGD("create Rockit Player");
+        return new RockitPlayerClient();
+    }
+};
+
 
 #define GET_PLAYER_TYPE_IMPL(a...)                      \
     Mutex::Autolock lock_(&sLock);                      \
@@ -249,6 +286,10 @@ void MediaPlayerFactory::registerBuiltinFactories() {
         delete factory;
     factory = new TestPlayerFactory();
     if (registerFactory_l(factory, TEST_PLAYER) != OK)
+        delete factory;
+
+    factory = new RockitPlayerFactory();
+    if (registerFactory_l(factory, ROCKIT_PLAYER) != OK)
         delete factory;
 
     sInitComplete = true;
