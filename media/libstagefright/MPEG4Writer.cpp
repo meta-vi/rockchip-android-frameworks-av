@@ -2694,7 +2694,7 @@ bool MPEG4Writer::findChunkToWrite(Chunk *chunk) {
 
 void MPEG4Writer::threadFunc() {
     ALOGV("threadFunc");
-
+    androidSetThreadPriority(0, ANDROID_PRIORITY_HIGHEST);
     prctl(PR_SET_NAME, (unsigned long)"MPEG4Writer", 0, 0, 0);
 
     Mutex::Autolock autoLock(mLock);
