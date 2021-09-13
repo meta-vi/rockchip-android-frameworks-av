@@ -203,6 +203,7 @@ player_type MediaPlayerFactory::getPlayerType(const sp<IMediaPlayer>& client,
     getFileName(fd,&filePath);
     if (strstr(filePath.string(), ".ogg")
         || strstr(filePath.string(), ".mid")
+        || strstr(filePath.string(), ".MID")
         || strstr(filePath.string(), ".mp3")
         || strstr(filePath.string(), ".apk")
         || strstr(filePath.string(), "notification_sound_cache")
