@@ -1618,6 +1618,9 @@ static void StripStartcode(MediaBuffer *buffer) {
         ALOGV("stripping start code");
         buffer->set_range(
                 buffer->range_offset() + 4, buffer->range_length() - 4);
+    } else if (!memcmp(ptr, "\x00\x00\x01", 3)) {
+        buffer->set_range(
+                buffer->range_offset() + 3, buffer->range_length() - 3);
     }
 }
 
@@ -2795,7 +2798,7 @@ void MPEG4Writer::threadFunc() {
         // Background priority for media transcoding.
         androidSetThreadPriority(0 /* tid (0 = current) */, ANDROID_PRIORITY_BACKGROUND);
     }
-
+    androidSetThreadPriority(0, ANDROID_PRIORITY_HIGHEST);
     Mutex::Autolock autoLock(mLock);
     while (!mDone) {
         Chunk chunk;

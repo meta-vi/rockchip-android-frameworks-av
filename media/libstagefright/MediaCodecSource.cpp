@@ -51,6 +51,9 @@ const int kStopTimeoutUs = 300000; // allow 1 sec for shutting down encoder
 // input source.
 const int kMaxStopTimeOffsetUs = 1000000;
 
+static const uint32_t kQueuedBufferMax = 100;  // default queue about 1s datas before drop frames
+static const uint32_t kDropCountOnce = 30;
+
 struct MediaCodecSource::Puller : public AHandler {
     explicit Puller(const sp<MediaSource> &source);
 
@@ -127,6 +130,15 @@ MediaCodecSource::Puller::~Puller() {
 
 void MediaCodecSource::Puller::Queue::pushBuffer(MediaBufferBase *mbuf) {
     mReadBuffers.push_back(mbuf);
+    if (mReadBuffers.size() > kQueuedBufferMax + kDropCountOnce) {
+        ALOGW("Queued buffers(%zu) > %u, dropped frames!!", mReadBuffers.size(), kQueuedBufferMax + kDropCountOnce);
+        MediaBufferBase *mbuffer;
+        while (mReadBuffers.size() > kQueuedBufferMax) {
+            if (readBuffer(&mbuffer)) {
+                mbuffer->release();
+            }
+        }
+    }
 }
 
 bool MediaCodecSource::Puller::Queue::readBuffer(MediaBufferBase **mbuf) {
@@ -187,6 +199,7 @@ status_t MediaCodecSource::Puller::start(const sp<MetaData> &meta, const sp<AMes
 }
 
 void MediaCodecSource::Puller::stop() {
+    ALOGV("puller (%s) stop", mIsAudio ? "audio" : "video");
     // mark stopping before actually reaching kWhatStop on the looper, so the pulling will
     // stop.
     Mutexed<Queue>::Locked queue(mQueue);
@@ -916,6 +929,7 @@ void MediaCodecSource::onMessageReceived(const sp<AMessage> &msg) {
         } else if (cbID == MediaCodec::CB_OUTPUT_FORMAT_CHANGED) {
             status_t err = mEncoder->getOutputFormat(&mOutputFormat);
             if (err != OK) {
+                ALOGV("[%s %d] (%s) signalEOS", __FUNCTION__, __LINE__, mIsVideo ? "video" : "audio");
                 signalEOS(err);
                 break;
             }
