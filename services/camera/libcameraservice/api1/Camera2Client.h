@@ -227,6 +227,7 @@ private:
 
     /** Utility members */
     bool mLegacyMode;
+    bool mPlayShutterSound;
 
     // Wait until the camera device has received the latest control settings
     status_t syncWithDevice();

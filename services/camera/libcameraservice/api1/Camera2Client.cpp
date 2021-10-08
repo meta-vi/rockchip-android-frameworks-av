@@ -69,6 +69,7 @@ Camera2Client::Camera2Client(const sp<CameraService>& cameraService,
 
     SharedParameters::Lock l(mParameters);
     l.mParameters.state = Parameters::DISCONNECTED;
+    mPlayShutterSound = true;
 }
 
 status_t Camera2Client::initialize(sp<CameraProviderManager> manager, const String8& monitorTags) {
@@ -1110,7 +1111,8 @@ status_t Camera2Client::startRecordingL(Parameters &params, bool restart) {
     }
 
     if (!restart) {
-        sCameraService->playSound(CameraService::SOUND_RECORDING_START);
+        if (mPlayShutterSound)
+            sCameraService->playSound(CameraService::SOUND_RECORDING_START);
         mStreamingProcessor->updateRecordingRequest(params);
         if (res != OK) {
             ALOGE("%s: Camera %d: Unable to update recording request: %s (%d)",
@@ -1266,8 +1268,8 @@ void Camera2Client::stopRecording() {
                     Parameters::getStateName(l.mParameters.state));
             return;
     };
-
-    sCameraService->playSound(CameraService::SOUND_RECORDING_STOP);
+    if (mPlayShutterSound)
+        sCameraService->playSound(CameraService::SOUND_RECORDING_STOP);
 
     // Remove recording stream because the video target may be abandoned soon.
     res = stopStream();
@@ -1687,15 +1689,18 @@ status_t Camera2Client::commandEnableShutterSoundL(bool enable) {
     SharedParameters::Lock l(mParameters);
     if (enable) {
         l.mParameters.playShutterSound = true;
+        mPlayShutterSound = true;
         return OK;
     }
 
     l.mParameters.playShutterSound = false;
+    mPlayShutterSound = false;
     return OK;
 }
 
 status_t Camera2Client::commandPlayRecordingSoundL() {
-    sCameraService->playSound(CameraService::SOUND_RECORDING_START);
+    if (mPlayShutterSound)
+        sCameraService->playSound(CameraService::SOUND_RECORDING_START);
     return OK;
 }
 
