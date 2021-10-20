@@ -387,12 +387,17 @@ void Converter::onMessageReceived(const sp<AMessage> &msg) {
 		 	sp<ABuffer> tmpbuffer = *mInputBufferQueue.begin();
 		 	releaseABufferEx(tmpbuffer);
 
-		 	if(!mIsVideo)
+		 	if(!mIsVideo) {
 				ALOGI("[audio buffer]audio queuebuffer >= %d release oldest buffer", maxSize);
-		  	else
-				ALOGI("[vedio buffer]audio queuebuffer >= %d release oldest buffer", maxSize);
-
-			mInputBufferQueue.erase(mInputBufferQueue.begin());
+                                List<sp<ABuffer> >::iterator It = mInputBufferQueue.begin();
+				while (It != mInputBufferQueue.end()) {
+                                    mInputBufferQueue.erase(It);
+                                    ++It;
+                                }
+			} else {
+				ALOGI("[vedio buffer]video queuebuffer >= %d release oldest buffer", maxSize);
+				mInputBufferQueue.erase(mInputBufferQueue.begin());
+                        }
 		  }
 
                 mInputBufferQueue.push_back(accessUnit);
@@ -650,10 +655,6 @@ status_t Converter::feedEncoderInputBuffers() {
             CHECK(buffer->meta()->findInt64("timeUs", &timeUs));
 
             memcpy(mEncoderInputBuffers.itemAt(bufferIndex)->data(),
-                   buffer->data(),
-                   buffer->size());
-
-	     memcpy(mEncoderInputBuffers.itemAt(bufferIndex)->data(),
                    buffer->data(),
                    buffer->size());
 

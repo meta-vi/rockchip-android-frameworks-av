@@ -116,6 +116,7 @@ private:
 
     bool mTrackMaxAmplitude;
     int64_t mStartTimeUs;
+    int64_t mSkipTimeUs;
     int64_t mStopSystemTimeUs;
     int64_t mLastFrameTimestampUs;
     int16_t mMaxAmplitude;

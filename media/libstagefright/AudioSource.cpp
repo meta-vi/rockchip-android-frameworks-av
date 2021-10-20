@@ -93,6 +93,7 @@ void AudioSource::set(
    mOutSampleRate = outSampleRate > 0 ? outSampleRate : sampleRate;
    mTrackMaxAmplitude = false;
    mStartTimeUs = 0;
+   mSkipTimeUs = 0;
    mStopSystemTimeUs = -1;
    mLastFrameTimestampUs = 0;
    mMaxAmplitude = 0;
@@ -175,9 +176,11 @@ status_t AudioSource::start(MetaData *params) {
     mMaxAmplitude = 0;
     mInitialReadTimeUs = 0;
     mStartTimeUs = 0;
+    mSkipTimeUs = 0;
     int64_t startTimeUs;
     if (params && params->findInt64(kKeyTime, &startTimeUs)) {
         mStartTimeUs = startTimeUs;
+        mSkipTimeUs = mStartTimeUs;
     }
     status_t err = mRecord->start();
     if (err == OK) {
@@ -403,6 +406,14 @@ status_t AudioSource::dataCallback(const AudioRecord::Buffer& audioBuffer) {
         ALOGV("Drop audio data(%" PRId64 " frames) at %" PRId64 "/%" PRId64 " us",
                 receievedFrames, timeUs, mStartTimeUs);
         mNumFramesSkipped += receievedFrames;
+        return OK;
+    }
+
+    // Drop audio data every 6 minutes
+    if (timeUs - mSkipTimeUs > 360*1000000LL) {
+        ALOGV("Drop audio data every 6 minutes");
+        releaseQueuedFrames_l();
+        mSkipTimeUs = timeUs;
         return OK;
     }
 
