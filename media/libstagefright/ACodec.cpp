@@ -63,12 +63,43 @@
 #include "include/SecureBuffer.h"
 #include "include/SharedMemoryBuffer.h"
 #include <media/stagefright/omx/OMXUtils.h>
+#include <cutils/properties.h>
 
 namespace android {
 
 typedef hardware::media::omx::V1_0::IGraphicBufferSource HGraphicBufferSource;
 
 using hardware::media::omx::V1_0::Status;
+
+/**
+ * colorspace
+ */
+typedef enum OMX_ROCKCHIP_EXT_COLORSPACE {
+    OMX_RK_EXT_ColorspaceBT709 = 1,
+    OMX_RK_EXT_ColorspaceBT2020,
+    OMX_RK_EXT_ColorspaceMax = 0x7FFFFFFF
+} OMX_RK_EXT_COLORSPACE;
+
+/**
+ * dynamic range
+ */
+typedef enum OMX_ROCKCHIP_EXT_DYNCRANGE {
+    OMX_RK_EXT_DyncrangeSDR = 0,
+    OMX_RK_EXT_DyncrangeHDR10,
+    OMX_RK_EXT_DyncrangeHDRHLG,
+    OMX_RK_EXT_DyncrangeHDRDOLBY,
+    OMX_RK_EXT_DyncrangeMax = 0x7FFFFFFF
+} OMX_RK_EXT_DYNCRANGE;
+
+/* Structure Rockchip extension HDR param of the component */
+ typedef struct OMX_EXTENSION_VIDEO_PARAM_HDR {
+    OMX_U32 nSize;                  /**< size of the structure in bytes */
+    OMX_VERSIONTYPE nVersion;       /**< OMX specification version information */
+    OMX_RK_EXT_COLORSPACE eColorSpace;    /**< Color space */
+    OMX_RK_EXT_DYNCRANGE eDyncRange;    /**< dynamic range */
+} OMX_EXTENSION_VIDEO_PARAM_HDR;
+
+#define OMX_IndexParamVideoHDRRockchipExtensions 0x70000001
 
 enum {
     kMaxIndicesToCheck = 32, // used when enumerating supported formats and profiles
@@ -1101,6 +1132,41 @@ status_t ACodec::setupNativeWindowSizeFormatAndUsage(
     }
 
     usage |= kVideoGrallocUsage;
+    OMX_EXTENSION_VIDEO_PARAM_HDR hdrParams;
+    InitOMXParams(&hdrParams);
+    err = mOMXNode->getParameter((OMX_INDEXTYPE)OMX_IndexParamVideoHDRRockchipExtensions, &hdrParams, sizeof(hdrParams));
+    ALOGW("%s %d colorSpace %x, eDyncRange %x", __FUNCTION__, __LINE__,
+                                 hdrParams.eColorSpace, hdrParams.eDyncRange);
+    switch(hdrParams.eDyncRange) {
+        case OMX_RK_EXT_DyncrangeHDR10: {
+            usage |= ((2 << 24) & 0x0f000000); //HDR10
+            break;
+        }
+        case OMX_RK_EXT_DyncrangeHDRHLG: {
+            usage |= ((3 << 24) & 0x0f000000); //HDR HLG
+            break;
+        }
+        case OMX_RK_EXT_DyncrangeHDRDOLBY: {
+            usage |= ((4 << 24) & 0x0f000000); //HDR DOBLY VERSION
+            break;
+        }
+        default:
+            break;
+    }
+
+    switch(hdrParams.eColorSpace) {
+        case OMX_RK_EXT_ColorspaceBT709: {
+            usage |= GRALLOC_USAGE_PRIVATE_0; //BT709
+            break;
+        }
+        case OMX_RK_EXT_ColorspaceBT2020: {
+            if (hdrParams.eDyncRange != OMX_RK_EXT_DyncrangeHDR10 && hdrParams.eDyncRange != OMX_RK_EXT_DyncrangeHDRHLG)
+                usage |= ((1 << 24) & 0x0f000000); //BT2020
+            break;
+        }
+        default:
+            break;
+    }
     *finalUsage = usage;
 
     memset(&mLastNativeWindowCrop, 0, sizeof(mLastNativeWindowCrop));
@@ -3472,6 +3538,27 @@ status_t ACodec::setupVideoDecoder(
         }
     }
 
+    /*
+     * add codes for tell decoder the profile and level of input stream
+     * the fbc mode is force to set in gralloc in some profile(like profile10)
+     */
+    char value[PROPERTY_VALUE_MAX];
+    property_get("cts_gts.status", value, "");
+    if (strcasecmp(value, "true") != 0) {
+        int32_t profile = 0;
+        int32_t level = 0;
+        if (msg->findInt32("profile", &profile) || msg->findInt32("level", &level)) {
+            OMX_VIDEO_PARAM_PROFILELEVELTYPE params;
+            InitOMXParams(&params);
+            params.nPortIndex = kPortIndexInput;
+
+            params.eProfile = profile;
+            params.eLevel = level;
+
+            mOMXNode->setParameter((OMX_INDEXTYPE)OMX_IndexParamVideoProfileLevelCurrent, &params, sizeof(params));
+        }
+    }
+
     if (compressionFormat == OMX_VIDEO_CodingVP9) {
         OMX_VIDEO_PARAM_PROFILELEVELTYPE params;
         InitOMXParams(&params);
@@ -5283,6 +5370,34 @@ status_t ACodec::getPortFormat(OMX_U32 portIndex, sp<AMessage> &notify) {
                     if (mChannelMaskPresent) {
                         notify->setInt32("channel-mask", mChannelMask);
                     }
+
+                    if (!mIsEncoder && portIndex == kPortIndexOutput) {
+                        AString mime;
+                        if (mConfigFormat->findString("mime", &mime)
+                                && !strcasecmp(MEDIA_MIMETYPE_AUDIO_AAC, mime.c_str())) {
+
+                            OMX_AUDIO_PARAM_ANDROID_AACDRCPRESENTATIONTYPE presentation;
+                            InitOMXParams(&presentation);
+                            err = mOMXNode->getParameter(
+                                    (OMX_INDEXTYPE)OMX_IndexParamAudioAndroidAacDrcPresentation,
+                                    &presentation, sizeof(presentation));
+                            if (err != OK) {
+                                return err;
+                            }
+                            notify->setInt32("aac-encoded-target-level",
+                                             presentation.nEncodedTargetLevel);
+                            notify->setInt32("aac-drc-cut-level", presentation.nDrcCut);
+                            notify->setInt32("aac-drc-boost-level", presentation.nDrcBoost);
+                            notify->setInt32("aac-drc-heavy-compression",
+                                             presentation.nHeavyCompression);
+                            notify->setInt32("aac-target-ref-level",
+                                             presentation.nTargetReferenceLevel);
+                            notify->setInt32("aac-drc-effect-type", presentation.nDrcEffectType);
+                            notify->setInt32("aac-drc-album-mode", presentation.nDrcAlbumMode);
+                            notify->setInt32("aac-drc-output-loudness",
+                                             presentation.nDrcOutputLoudness);
+                        }
+                    }
                     break;
                 }
 
@@ -6947,10 +7062,9 @@ status_t ACodec::LoadedState::setupInputSurface() {
         return err;
     }
 
-    using hardware::media::omx::V1_0::utils::TWOmxNode;
     err = statusFromBinderStatus(
             mCodec->mGraphicBufferSource->configure(
-                    new TWOmxNode(mCodec->mOMXNode),
+                    mCodec->mOMXNode->getHalInterface<IOmxNode>(),
                     static_cast<hardware::graphics::common::V1_0::Dataspace>(dataSpace)));
     if (err != OK) {
         ALOGE("[%s] Unable to configure for node (err %d)",
@@ -7704,6 +7818,58 @@ status_t ACodec::setParameters(const sp<AMessage> &params) {
     // Ignore errors as failure is expected for codecs that aren't video encoders.
     (void)configureTemporalLayers(params, false /* inConfigure */, mOutputFormat);
 
+    AString mime;
+    if (!mIsEncoder
+            && (mConfigFormat->findString("mime", &mime))
+            && !strcasecmp(MEDIA_MIMETYPE_AUDIO_AAC, mime.c_str())) {
+        OMX_AUDIO_PARAM_ANDROID_AACDRCPRESENTATIONTYPE presentation;
+        InitOMXParams(&presentation);
+        mOMXNode->getParameter(
+                    (OMX_INDEXTYPE)OMX_IndexParamAudioAndroidAacDrcPresentation,
+                    &presentation, sizeof(presentation));
+        int32_t value32 = 0;
+        bool updated = false;
+        if (params->findInt32("aac-pcm-limiter-enable", &value32)) {
+            presentation.nPCMLimiterEnable = value32;
+            updated = true;
+        }
+        if (params->findInt32("aac-encoded-target-level", &value32)) {
+            presentation.nEncodedTargetLevel = value32;
+            updated = true;
+        }
+        if (params->findInt32("aac-drc-cut-level", &value32)) {
+            presentation.nDrcCut = value32;
+            updated = true;
+        }
+        if (params->findInt32("aac-drc-boost-level", &value32)) {
+            presentation.nDrcBoost = value32;
+            updated = true;
+        }
+        if (params->findInt32("aac-drc-heavy-compression", &value32)) {
+            presentation.nHeavyCompression = value32;
+            updated = true;
+        }
+        if (params->findInt32("aac-target-ref-level", &value32)) {
+            presentation.nTargetReferenceLevel = value32;
+            updated = true;
+        }
+        if (params->findInt32("aac-drc-effect-type", &value32)) {
+            presentation.nDrcEffectType = value32;
+            updated = true;
+        }
+        if (params->findInt32("aac-drc-album-mode", &value32)) {
+            presentation.nDrcAlbumMode = value32;
+            updated = true;
+        }
+        if (!params->findInt32("aac-drc-output-loudness", &value32)) {
+            presentation.nDrcOutputLoudness = value32;
+            updated = true;
+        }
+        if (updated) {
+            mOMXNode->setParameter((OMX_INDEXTYPE)OMX_IndexParamAudioAndroidAacDrcPresentation,
+                &presentation, sizeof(presentation));
+        }
+    }
     return setVendorParameters(params);
 }
 
