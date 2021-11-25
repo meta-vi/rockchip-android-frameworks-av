@@ -5280,6 +5280,16 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::MixerThread::prepareTrac
                 v = 0;
             }
 
+            char value[PROPERTY_VALUE_MAX] = "";
+            property_get("persist.sys.bootvideo.enable",value, "false");
+            if (!strcmp(value, "true")) {
+                property_get("sys.bootvideo.closed", value, "1");
+                if (atoi(value) == 0) {
+                    ALOGV("boot running now,audioflinger no need to control volume");
+                    v = 1.0;
+                }
+            }
+
             handleVoipVolume_l(&v);
 
             if (track->isPausing()) {

@@ -31,6 +31,7 @@
 #include "EffectHalHidl.h"
 #include "ParameterUtils.h"
 #include "StreamHalHidl.h"
+#include <cutils/properties.h>
 
 using ::android::hardware::audio::common::CPP_VERSION::implementation::HidlUtils;
 using ::android::hardware::audio::CPP_VERSION::implementation::CoreUtils;
@@ -265,6 +266,16 @@ bool StreamHalHidl::requestHalThreadPriority(pid_t threadPid, pid_t threadId) {
     if (mHalThreadPriority == HAL_THREAD_PRIORITY_DEFAULT) {
         return true;
     }
+
+    char value[PROPERTY_VALUE_MAX] = "";
+    property_get("persist.sys.bootvideo.enable",value, "false");
+    if (!strcmp(value, "true")) {
+        property_get("sys.bootvideo.closed", value, "0");
+        if (atoi(value) == 0) {
+            return true;
+        }
+    }
+
     int err = requestPriority(
             threadPid, threadId,
             mHalThreadPriority, false /*isForApp*/, true /*asynchronous*/);

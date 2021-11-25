@@ -483,7 +483,8 @@ private:
             SET_EFFECT_SUSPENDED,
             AUDIO_MODULES_UPDATE,
             ROUTING_UPDATED,
-            UPDATE_UID_STATES
+            UPDATE_UID_STATES,
+			REGISTER_UID
         };
 
         AudioCommandThread (String8 name, const wp<AudioPolicyService>& service);
@@ -533,6 +534,7 @@ private:
                     void        routingChangedCommand();
                     void        updateUidStatesCommand();
                     void        insertCommand_l(AudioCommand *command, int delayMs = 0);
+                    void        registerUidCommand(sp<UidPolicy> uidpolicy);
     private:
         class AudioCommandData;
 
@@ -634,6 +636,12 @@ private:
             int mEffectId;
             audio_session_t mSessionId;
             bool mSuspended;
+        };
+
+        class RegisterData : public AudioCommandData {
+        public:
+           sp<UidPolicy> mUidPolicy;
+           sp<SensorPrivacyPolicy> mSensorPrivacyPolicy;
         };
 
         Mutex   mLock;
