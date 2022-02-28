@@ -64,6 +64,7 @@ enum media_event_type {
     MEDIA_DRM_INFO          = 210,
     MEDIA_TIME_DISCONTINUITY = 211,
     MEDIA_IMS_RX_NOTICE     = 300,
+    MEDIA_FRAME_RATE        = 301,
     MEDIA_AUDIO_ROUTING_CHANGED = 10000,
 };
 

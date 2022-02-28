@@ -964,6 +964,9 @@ void MediaPlayer::notify(int msg, int ext1, int ext2, const Parcel *obj)
     case MEDIA_IMS_RX_NOTICE:
         ALOGV("Received IMS Rx notice message");
         break;
+    case MEDIA_FRAME_RATE:
+        ALOGV("Received frame rate message");
+        break;
     default:
         ALOGV("unrecognized message: (%d, %d, %d)", msg, ext1, ext2);
         break;
