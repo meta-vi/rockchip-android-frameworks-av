@@ -34,6 +34,7 @@
 #include <media/AudioContainers.h>
 #include <utils/String8.h>
 #include <utils/Log.h>
+#include <cutils/properties.h>
 
 namespace android
 {
@@ -558,9 +559,15 @@ sp<DeviceDescriptor> Engine::getDeviceForInputSource(audio_source_t inputSource)
         break;
     case AUDIO_SOURCE_CAMCORDER:
         // For a device without built-in mic, adding usb device
-        device = availableDevices.getFirstExistingDevice({
-                AUDIO_DEVICE_IN_USB_DEVICE, AUDIO_DEVICE_IN_BACK_MIC,
-                AUDIO_DEVICE_IN_BUILTIN_MIC});
+        if (property_get_bool("media.audio.hdmiin", false)) {
+            device = availableDevices.getFirstExistingDevice({
+                AUDIO_DEVICE_IN_HDMI, AUDIO_DEVICE_IN_USB_DEVICE,
+                AUDIO_DEVICE_IN_BACK_MIC, AUDIO_DEVICE_IN_BUILTIN_MIC});
+        } else {
+            device = availableDevices.getFirstExistingDevice({
+                AUDIO_DEVICE_IN_USB_DEVICE,
+                AUDIO_DEVICE_IN_BACK_MIC, AUDIO_DEVICE_IN_BUILTIN_MIC});
+        }
         break;
     case AUDIO_SOURCE_VOICE_DOWNLINK:
     case AUDIO_SOURCE_VOICE_CALL:
