@@ -155,6 +155,7 @@ cc_library_shared {
         "android.hardware.camera.device@3.6",
         "android.hardware.camera.device@3.7",
         "media_permission-aidl-cpp",
+        "rockchip.hardware.hdmi@1.0",
     ],
 
     static_libs: [
@@ -182,6 +183,13 @@ cc_library_shared {
 
     export_include_dirs: ["."],
 
+    product_variables: {
+       cameraSupportHDMI: {
+           cppflags:[
+               "-DHDMI_ENABLE",
+           ],
+       }
+    },
     cflags: [
         "-Wall",
         "-Wextra",
