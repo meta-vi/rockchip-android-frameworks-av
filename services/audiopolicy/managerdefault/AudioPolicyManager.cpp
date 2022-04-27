@@ -51,6 +51,10 @@
 #include "AudioPolicyManager.h"
 #include "TypeConverter.h"
 
+#if SUPPORT_MULTIAUDIO
+#include <media/RKMultiAudio.h>
+#endif
+
 namespace android {
 
 using content::AttributionSourceState;
@@ -1094,6 +1098,21 @@ status_t AudioPolicyManager::getOutputForAttrInt(
     // explicit routing managed by getDeviceForStrategy in APM is now handled by engine
     // in order to let the choice of the order to future vendor engine
     outputDevices = mEngine->getOutputDevicesForAttributes(*resultAttr, requestedDevice, false);
+
+#if SUPPORT_MULTIAUDIO
+    audio_session_t sessionid = session;
+    uint32_t this_flags = (uint32_t)*flags;
+    uint32_t flag1 = (uint32_t)*flags;
+    bool boo = false;
+    audio_devices_t device = AUDIO_DEVICE_OUT_SPEAKER;
+    multiaudio_D(sessionid, &this_flags, &flag1, &boo, &device);
+    if (device != (audio_devices_t)0) {
+        outputDevices = mAvailableOutputDevices.getDevicesFromType(device);
+        if (outputDevices.isEmpty()) {
+            outputDevices = mEngine->getOutputDevicesForAttributes(*resultAttr, requestedDevice, false);
+        }
+    }
+#endif
 
     if ((resultAttr->flags & AUDIO_FLAG_HW_AV_SYNC) != 0) {
         *flags = (audio_output_flags_t)(*flags | AUDIO_OUTPUT_FLAG_HW_AV_SYNC);
@@ -4638,7 +4657,7 @@ status_t AudioPolicyManager::getReportedSurroundFormats(unsigned int *numSurroun
         audio_devices_t deviceType = device->type();
         // Enabling/disabling formats are applied to only HDMI devices. So, this function
         // returns formats reported by HDMI devices.
-        if (deviceType != AUDIO_DEVICE_OUT_HDMI) {
+        if (deviceType != AUDIO_DEVICE_OUT_HDMI && deviceType != AUDIO_DEVICE_OUT_HDMI_1) {
             continue;
         }
         // Formats reported by sink devices
@@ -4728,6 +4747,29 @@ status_t AudioPolicyManager::setSurroundFormatEnabled(audio_format_t audioFormat
                                              AUDIO_FORMAT_DEFAULT);
         profileUpdated |= (status == NO_ERROR);
     }
+#if SUPPORT_MULTIAUDIO
+    DeviceVector hdmi1OutputDevices = mAvailableOutputDevices.getDevicesFromType(
+        AUDIO_DEVICE_OUT_HDMI_1);
+    for (size_t i = 0; i < hdmi1OutputDevices.size(); i++) {
+        // Simulate reconnection to update enabled surround sound formats.
+        String8 address = String8(hdmi1OutputDevices[i]->address().c_str());
+        std::string name = hdmi1OutputDevices[i]->getName();
+        status_t status = setDeviceConnectionStateInt(AUDIO_DEVICE_OUT_HDMI_1,
+                                                      AUDIO_POLICY_DEVICE_STATE_UNAVAILABLE,
+                                                      address.c_str(),
+                                                      name.c_str(),
+                                                      AUDIO_FORMAT_DEFAULT);
+        if (status != NO_ERROR) {
+            continue;
+        }
+        status = setDeviceConnectionStateInt(AUDIO_DEVICE_OUT_HDMI_1,
+                                             AUDIO_POLICY_DEVICE_STATE_AVAILABLE,
+                                             address.c_str(),
+                                             name.c_str(),
+                                             AUDIO_FORMAT_DEFAULT);
+        profileUpdated |= (status == NO_ERROR);
+    }
+#endif
     // FIXME: Why doing this for input HDMI devices if we don't augment their reported formats?
     DeviceVector hdmiInputDevices = mAvailableInputDevices.getDevicesFromType(
                 AUDIO_DEVICE_IN_HDMI);
@@ -5742,8 +5784,47 @@ SortedVector<audio_io_handle_t> AudioPolicyManager::getOutputsForDevices(
             const SwAudioOutputCollection& openOutputs)
 {
     SortedVector<audio_io_handle_t> outputs;
-
     ALOGVV("%s() devices %s", __func__, devices.toString().c_str());
+#if SUPPORT_MULTIAUDIO
+    DeviceVector newDevice;
+    if ((devices.containsDeviceWithType(AUDIO_DEVICE_OUT_HDMI) &&
+            devices.containsDeviceWithType(AUDIO_DEVICE_OUT_HDMI_1)) ||
+        (devices.containsDeviceWithType(AUDIO_DEVICE_OUT_HDMI) &&
+            devices.containsDeviceWithType(AUDIO_DEVICE_OUT_SPDIF))) {
+        newDevice = devices.getDevicesFromType(AUDIO_DEVICE_OUT_HDMI);
+    } else if ((devices.containsDeviceWithType(AUDIO_DEVICE_OUT_HDMI_1) &&
+            devices.containsDeviceWithType(AUDIO_DEVICE_OUT_SPDIF)) ||
+            (devices.containsDeviceWithType(AUDIO_DEVICE_OUT_HDMI_1) &&
+            devices.containsDeviceWithType(AUDIO_DEVICE_OUT_SPDIF_1))) {
+        newDevice = devices.getDevicesFromType(AUDIO_DEVICE_OUT_HDMI_1);
+    } else if (devices.containsDeviceWithType(AUDIO_DEVICE_OUT_SPDIF) &&
+            devices.containsDeviceWithType(AUDIO_DEVICE_OUT_SPDIF_1)) {
+        newDevice = devices.getDevicesFromType(AUDIO_DEVICE_OUT_SPDIF);
+    }
+    if (!newDevice.isEmpty()) {
+        for (size_t i = 0; i < openOutputs.size(); i++) {
+            ALOGVV("output %zu isDuplicated=%d device=%s",
+                    i, openOutputs.valueAt(i)->isDuplicated(),
+                    openOutputs.valueAt(i)->supportedDevices().toString().c_str());
+            if (openOutputs.valueAt(i)->supportsAllDevices(newDevice)
+                    && openOutputs.valueAt(i)->devicesSupportEncodedFormats(newDevice.types())) {
+                ALOGVV("%s() found output %d", __func__, openOutputs.keyAt(i));
+                outputs.add(openOutputs.keyAt(i));
+            }
+        }
+    } else {
+        for (size_t i = 0; i < openOutputs.size(); i++) {
+            ALOGVV("output %zu isDuplicated=%d device=%s",
+                    i, openOutputs.valueAt(i)->isDuplicated(),
+                    openOutputs.valueAt(i)->supportedDevices().toString().c_str());
+            if (openOutputs.valueAt(i)->supportsAllDevices(devices)
+                    && openOutputs.valueAt(i)->devicesSupportEncodedFormats(devices.types())) {
+                ALOGVV("%s() found output %d", __func__, openOutputs.keyAt(i));
+                outputs.add(openOutputs.keyAt(i));
+            }
+        }
+    }
+#else
     for (size_t i = 0; i < openOutputs.size(); i++) {
         ALOGVV("output %zu isDuplicated=%d device=%s",
                 i, openOutputs.valueAt(i)->isDuplicated(),
@@ -5754,6 +5835,7 @@ SortedVector<audio_io_handle_t> AudioPolicyManager::getOutputsForDevices(
             outputs.add(openOutputs.keyAt(i));
         }
     }
+#endif
     return outputs;
 }
 
@@ -7086,7 +7168,7 @@ void AudioPolicyManager::updateAudioProfiles(const sp<DeviceDescriptor>& devDesc
         }
         FormatVector formats = formatsFromString(reply.string());
         mReportedFormatsMap[devDesc] = formats;
-        if (device == AUDIO_DEVICE_OUT_HDMI
+        if (device == AUDIO_DEVICE_OUT_HDMI || device == AUDIO_DEVICE_OUT_HDMI_1
                 || isDeviceOfModule(devDesc, AUDIO_HARDWARE_MODULE_ID_MSD)) {
             modifySurroundFormats(devDesc, &formats);
         }
@@ -7120,7 +7202,7 @@ void AudioPolicyManager::updateAudioProfiles(const sp<DeviceDescriptor>& devDesc
             if (repliedParameters.get(
                     String8(AudioParameter::keyStreamSupportedChannels), reply) == NO_ERROR) {
                 channelMasks = channelMasksFromString(reply.string());
-                if (device == AUDIO_DEVICE_OUT_HDMI
+                if (device == AUDIO_DEVICE_OUT_HDMI || device == AUDIO_DEVICE_OUT_HDMI_1
                         || isDeviceOfModule(devDesc, AUDIO_HARDWARE_MODULE_ID_MSD)) {
                     modifySurroundChannelMasks(&channelMasks);
                 }

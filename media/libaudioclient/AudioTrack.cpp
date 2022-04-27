@@ -40,6 +40,11 @@
 #include <media/MediaMetricsItem.h>
 #include <media/TypeConverter.h>
 
+#if SUPPORT_MULTIAUDIO
+#include <media/RKMultiAudio.h>
+#include <binder/PermissionController.h>
+#endif
+
 #define WAIT_PERIOD_MS                  10
 #define WAIT_STREAM_END_TIMEOUT_SEC     120
 static const int kMaxLoopCountNotifications = 32;
@@ -399,7 +404,18 @@ status_t AudioTrack::set(
     uid_t uid = VALUE_OR_FATAL(aidl2legacy_int32_t_uid_t(attributionSource.uid));
     pid_t pid = VALUE_OR_FATAL(aidl2legacy_int32_t_pid_t(attributionSource.pid));
     std::string errorMessage;
-
+#if SUPPORT_MULTIAUDIO
+#if MultiAudioTest
+    Vector<String16> packages;
+    PermissionController{}.getPackagesForUid(uid, packages);
+    if(!packages.isEmpty()) {
+        ALOGD("RKMultiAudio:package name: %s uid %d",String8(packages[0]).string(),uid);
+        mPackageName = packages[0];
+    } else {
+        mPackageName = String16("default");
+    }
+#endif
+#endif
     // Note mPortId is not valid until the track is created, so omit mPortId in ALOG for set.
     ALOGV("%s(): streamType %d, sampleRate %u, format %#x, channelMask %#x, frameCount %zu, "
           "flags #%x, notificationFrames %d, sessionId %d, transferType %d, uid %d, pid %d",
@@ -1774,6 +1790,29 @@ status_t AudioTrack::createTrack_l()
         input.speed  = !isPurePcmData_l() || isOffloadedOrDirect_l() ? 1.0f :
                         max(mMaxRequiredSpeed, mPlaybackRate.mSpeed);
     }
+
+#if SUPPORT_MULTIAUDIO
+    audio_session_t sessionid = mSessionId;
+#if MultiAudioTest
+    String8 tmp = String8(mPackageName);
+    if (strstr(tmp.string(), "RockVideoPlayer")) {
+        sessionid = (audio_session_t)65;
+    } else if (strstr(tmp.string(), "gallery3d")) {
+        sessionid = (audio_session_t)81;
+    } else if (strstr(tmp.string(), "mxtech")) {
+        sessionid = (audio_session_t)57;
+    }
+#endif
+    uint32_t this_flags = (uint32_t)mFlags;
+    uint32_t flag1 = (uint32_t)mFlags;
+    bool boo = false;
+    audio_devices_t device = AUDIO_DEVICE_OUT_SPEAKER;
+    multiaudio_A(sessionid, &this_flags, &flag1, &boo, &device);
+
+    mFlags = (audio_output_flags_t)this_flags;
+    ALOGD("flags: 0x%x",mFlags);
+#endif
+
     input.flags = mFlags;
     input.frameCount = mReqFrameCount;
     input.notificationFrameCount = mNotificationFramesReq;
@@ -1865,7 +1904,14 @@ status_t AudioTrack::createTrack_l()
                   __func__, mPortId, mReqFrameCount, mFrameCount);
         }
     }
+
+#if SUPPORT_MULTIAUDIO
+    uint32_t tmp_flags = (uint32_t)output.flags;
+    multiaudio_B(sessionid, &this_flags, &tmp_flags, &boo, &device);
+    mFlags = (audio_output_flags_t)(this_flags);
+#else
     mFlags = output.flags;
+#endif
 
     //mOutput != output includes the case where mOutput == AUDIO_IO_HANDLE_NONE for first creation
     if (mDeviceCallback != 0) {
@@ -2094,6 +2140,35 @@ status_t AudioTrack::obtainBuffer(Buffer* audioBuffer, const struct timespec *re
 
         {   // start of lock scope
             AutoMutex lock(mLock);
+
+#if SUPPORT_MULTIAUDIO
+            audio_session_t sessionid = mSessionId;
+#if MultiAudioTest
+            String8 tmp = String8(mPackageName);
+            if (strstr(tmp.string(), "RockVideoPlayer")) {
+                sessionid = (audio_session_t)65;
+            } else if (strstr(tmp.string(), "gallery3d")) {
+                sessionid = (audio_session_t)81;
+            } else if (strstr(tmp.string(), "mxtech")) {
+                sessionid = (audio_session_t)57;
+            }
+#endif
+            uint32_t this_flags = (uint32_t)mFlags;
+            uint32_t flag1 = (uint32_t)mFlags;
+            bool boo = false;
+            audio_devices_t device = AUDIO_DEVICE_OUT_SPEAKER;
+            multiaudio_C(sessionid, &this_flags, &flag1, &boo, &device);
+            if (boo) {
+                ALOGD("force restoreTrack_l!");
+                status = restoreTrack_l("obtainBuffer");
+                if (status != NO_ERROR) {
+                    buffer.mFrameCount = 0;
+                    buffer.mRaw = NULL;
+                    buffer.mNonContig = 0;
+                    break;
+                }
+            }
+#endif
 
             uint32_t newSequence = mSequence;
             // did previous obtainBuffer() fail due to media server death or voluntary invalidation?
