@@ -430,7 +430,15 @@ void CameraService::onDeviceStatusChanged(const String8& id,
             updateStatus(newStatus, id);
 #ifdef HDMI_ENABLE
             sp<rockchip::hardware::hdmi::V1_0::IHdmi> client = rockchip::hardware::hdmi::V1_0::IHdmi::getService();
-            if(client.get()!= nullptr && strstr(id.string(),"117")){
+            ::android::hardware::hidl_string deviceId;
+            if(client.get()!= nullptr){
+                client->getHdmiDeviceId( [&](const ::android::hardware::hidl_string &id){
+                        deviceId = id.c_str();
+                        ALOGD("cameraId:%s",id.c_str());
+                });
+                ALOGD("getHdmiDeviceId:%s",deviceId.c_str());
+            }
+            if(client.get()!= nullptr && strstr(id.string(),deviceId.c_str())){
                 client->onStatusChange((uint32_t)newHalStatus);
                 ALOGD("onStatusChange:%d",newHalStatus);
             }
@@ -483,7 +491,15 @@ void CameraService::onDeviceStatusChanged(const String8& id,
     }
 #ifdef HDMI_ENABLE
     sp<rockchip::hardware::hdmi::V1_0::IHdmi> client = rockchip::hardware::hdmi::V1_0::IHdmi::getService();
-     if(client.get()!= nullptr && strstr(id.string(),"117")){
+    ::android::hardware::hidl_string deviceId;
+    if(client.get()!= nullptr){
+        client->getHdmiDeviceId( [&](const ::android::hardware::hidl_string &id){
+                deviceId = id.c_str();
+                ALOGD("cameraId:%s",id.c_str());
+        });
+        ALOGD("getHdmiDeviceId:%s",deviceId.c_str());
+    }
+    if(client.get()!= nullptr && strstr(id.string(),deviceId.c_str())){
         client->onStatusChange((uint32_t)newHalStatus);
         ALOGD("onStatusChange:%d",newHalStatus);
     }
