@@ -844,7 +844,7 @@ status_t CCodecBufferChannel::renderOutputBuffer(
     // TODO: revisit this after C2Fence implementation.
     android::IGraphicBufferProducer::QueueBufferInput qbi(
             timestampNs,
-            false, // droppable
+            true, // droppable
             dataSpace,
             Rect(blocks.front().crop().left,
                  blocks.front().crop().top,
