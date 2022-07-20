@@ -26,6 +26,7 @@
 #include <media/PolicyAidlConversion.h>
 #include <utils/Log.h>
 #include <android/content/AttributionSourceState.h>
+#include <cutils/properties.h>
 
 #define VALUE_OR_RETURN_BINDER_STATUS(x) \
     ({ auto _tmp = (x); \
@@ -334,7 +335,11 @@ Status AudioPolicyService::getOutputForAttr(const media::AudioAttributesInternal
     }
     if (!mPackageManager.allowPlaybackCapture(VALUE_OR_RETURN_BINDER_STATUS(
         aidl2legacy_int32_t_uid_t(adjAttributionSource.uid)))) {
-        attr.flags = static_cast<audio_flags_mask_t>(attr.flags | AUDIO_FLAG_NO_MEDIA_PROJECTION);
+        if (property_get_bool("media.audio.hdmiin", false)){
+            ALOGW("allow playback capture for AudioTrack from hdmiin !");
+        } else {
+            attr.flags = static_cast<audio_flags_mask_t>(attr.flags | AUDIO_FLAG_NO_MEDIA_PROJECTION);
+        }
     }
     if (((attr.flags & (AUDIO_FLAG_BYPASS_INTERRUPTION_POLICY|AUDIO_FLAG_BYPASS_MUTE)) != 0)
             && !bypassInterruptionPolicyAllowed(adjAttributionSource)) {
