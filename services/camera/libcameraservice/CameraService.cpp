@@ -11,13 +11,14 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License.
+ * limitations under the License.1
  */
 
 #define LOG_TAG "CameraService"
 #define ATRACE_TAG ATRACE_TAG_CAMERA
-//#define LOG_NDEBUG 0
-
+#ifdef SUBDEVICE_ENABLE
+#define LOG_NDEBUG 0
+#endif
 #include <algorithm>
 #include <climits>
 #include <stdio.h>
@@ -137,6 +138,13 @@ static const String16
 const char *sFileName = "lastOpenSessionDumpFile";
 static constexpr int32_t kVendorClientScore = resource_policy::PERCEPTIBLE_APP_ADJ;
 static constexpr int32_t kVendorClientState = ActivityManager::PROCESS_STATE_PERSISTENT_UI;
+
+#ifdef SUBDEVICE_ENABLE
+static std::map<int,int> mapConnected;
+static std::map<int,int> mapConnectedMain;
+#define DEVICE_MASK 100
+#define SUBDEVICE_OFFSET 200
+#endif
 
 const String8 CameraService::kOfflineDevice("offline-");
 
@@ -568,6 +576,7 @@ void CameraService::onDeviceStatusChanged(const String8& id,
 }
 
 void CameraService::disconnectClient(const String8& id, sp<BasicClient> clientToDisconnect) {
+    ALOGV("@%s,%d id:%s",__FUNCTION__,__LINE__,id.c_str());
     if (clientToDisconnect.get() != nullptr) {
         ALOGI("%s: Client for camera ID %s evicted due to device status change from HAL",
                 __FUNCTION__, id.string());
@@ -1564,6 +1573,16 @@ Status CameraService::connect(
     Status ret = Status::ok();
 
     String8 id = cameraIdIntToStr(api1CameraId);
+#ifdef SUBDEVICE_ENABLE
+    int mapId = std::stoi(id.c_str())%DEVICE_MASK;
+    if (mapConnected[mapId]&&mapConnectedMain[mapId])
+    {
+        ALOGV("@%s,%d mapConnected:%d,id:%s",__FUNCTION__,__LINE__,mapConnected[mapId],id.c_str());
+        id = std::to_string(mapId+ SUBDEVICE_OFFSET).c_str();
+        ALOGV("@%s,%d mapConnected done:%d,id:%s",__FUNCTION__,__LINE__,mapConnected[mapId],id.c_str());
+    }
+    ALOGV("@%s,%d id:%s,api1CameraId:%d,targetSdkVersion:%d",__FUNCTION__,__LINE__,id.c_str(),api1CameraId,targetSdkVersion);
+#endif
     sp<Client> client = nullptr;
     ret = connectHelper<ICameraClient,Client>(cameraClient, id, api1CameraId,
             clientPackageName, {}, clientUid, clientPid, API_1,
@@ -1576,6 +1595,17 @@ Status CameraService::connect(
     }
 
     *device = client;
+#ifdef SUBDEVICE_ENABLE
+    if(ret.isOk()){
+        mapConnected[mapId]++;
+        if (std::stoi(id.c_str())/DEVICE_MASK == 1)
+        {
+            mapConnectedMain[mapId]=1;
+            ALOGV("@%s,%d  main isOk",__FUNCTION__,__LINE__);
+        }
+        ALOGV("@%s,%d mapConnected:%d,id:%s isOk",__FUNCTION__,__LINE__,mapConnected[mapId],id.c_str());
+    }
+#endif
     return ret;
 }
 
@@ -1679,7 +1709,16 @@ Status CameraService::connectDevice(
         ALOGE("%s: %s", __FUNCTION__, msg.string());
         return STATUS_ERROR(ERROR_PERMISSION_DENIED, msg.string());
     }
-
+#ifdef SUBDEVICE_ENABLE
+    int mapId = std::stoi(id.c_str())%DEVICE_MASK;
+    if (mapConnected[mapId]&&mapConnectedMain[mapId])
+    {
+        ALOGV("@%s,%d mapConnected:%d,id:%s",__FUNCTION__,__LINE__,mapConnected[mapId],id.c_str());
+        id = std::to_string(mapId+ SUBDEVICE_OFFSET).c_str();
+        ALOGV("@%s,%d mapConnected done:%d,id:%s",__FUNCTION__,__LINE__,mapConnected[mapId],id.c_str());
+    }
+    ALOGV("@%s,%d id:%s,targetSdkVersion:%d",__FUNCTION__,__LINE__,id.c_str(),targetSdkVersion);
+#endif
     ret = connectHelper<hardware::camera2::ICameraDeviceCallbacks,CameraDeviceClient>(cameraCb, id,
             /*api1CameraId*/-1, clientPackageNameAdj, clientFeatureId,
             clientUid, USE_CALLING_PID, API_2, /*shimUpdateOnly*/ false, oomScoreOffset,
@@ -1691,6 +1730,17 @@ Status CameraService::connectDevice(
     }
 
     *device = client;
+#ifdef SUBDEVICE_ENABLE
+    if(ret.isOk()){
+        mapConnected[mapId]++;
+        if (std::stoi(id.c_str())/DEVICE_MASK == 1)
+        {
+            mapConnectedMain[mapId]=1;
+            ALOGV("@%s,%d  main isOk",__FUNCTION__,__LINE__);
+        }
+        ALOGV("@%s,%d mapConnected:%d,id:%s isOk",__FUNCTION__,__LINE__,mapConnected[mapId],id.c_str());
+    }
+#endif
     Mutex::Autolock lock(mServiceLock);
 
     // Clear the previous cached logs and reposition the
@@ -3103,7 +3153,16 @@ binder::Status CameraService::BasicClient::disconnect() {
 
     // client shouldn't be able to call into us anymore
     mClientPid = 0;
-
+#ifdef SUBDEVICE_ENABLE
+    int mapId = std::stoi(mCameraIdStr.c_str())%DEVICE_MASK;
+    mapConnected[mapId]-= 1;
+    if (std::stoi(mCameraIdStr.c_str())/DEVICE_MASK == 1)
+    {
+        mapConnectedMain[mapId] = 0;
+        ALOGV("@%s,%d  main disconnect",__FUNCTION__,__LINE__);
+    }
+    ALOGV("@%s,%d mapConnected:%d,cameraIdStr:%s, mapConnected:%d",__FUNCTION__,__LINE__,mapConnected[mapId],mCameraIdStr.c_str(),mapConnected[mapId]);
+#endif
     return res;
 }
 
