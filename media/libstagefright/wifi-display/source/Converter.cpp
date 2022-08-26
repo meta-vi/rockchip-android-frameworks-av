@@ -56,6 +56,7 @@ Converter::Converter(
       mCodecLooper(codecLooper),
       mOutputFormat(outputFormat),
       mFlags(flags),
+      mFrameCounts(0),
       mIsVideo(false),
       mIsH264(false),
       mIsPCMAudio(false),
@@ -708,6 +709,12 @@ sp<ABuffer> Converter::prependCSD(const sp<ABuffer> &accessUnit) const {
 
 status_t Converter::doMoreWork() {
     status_t err;
+
+    mFrameCounts++;
+    if (mFrameCounts < 20 && mFrameCounts % 5 == 0) {
+        mEncoder->requestIDRFrame();
+        ALOGI("start cast and request IDR Frame");
+    }
 
     if (!(mFlags & FLAG_USE_SURFACE_INPUT)) {
         for (;;) {
