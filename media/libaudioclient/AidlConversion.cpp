@@ -864,6 +864,10 @@ ConversionResult<audio_source_t> aidl2legacy_AudioSourceType_audio_source_t(
             return AUDIO_SOURCE_UNPROCESSED;
         case media::AudioSourceType::VOICE_PERFORMANCE:
             return AUDIO_SOURCE_VOICE_PERFORMANCE;
+        case media::AudioSourceType::HDMIIN:
+            return AUDIO_SOURCE_HDMIIN;
+        case media::AudioSourceType::HDMIIN_1:
+            return AUDIO_SOURCE_HDMIIN_1;
         case media::AudioSourceType::ECHO_REFERENCE:
             return AUDIO_SOURCE_ECHO_REFERENCE;
         case media::AudioSourceType::FM_TUNER:
@@ -901,6 +905,10 @@ ConversionResult<media::AudioSourceType> legacy2aidl_audio_source_t_AudioSourceT
             return media::AudioSourceType::UNPROCESSED;
         case AUDIO_SOURCE_VOICE_PERFORMANCE:
             return media::AudioSourceType::VOICE_PERFORMANCE;
+        case AUDIO_SOURCE_HDMIIN:
+            return media::AudioSourceType::HDMIIN;
+        case AUDIO_SOURCE_HDMIIN_1:
+            return media::AudioSourceType::HDMIIN_1;
         case AUDIO_SOURCE_ECHO_REFERENCE:
             return media::AudioSourceType::ECHO_REFERENCE;
         case AUDIO_SOURCE_FM_TUNER:

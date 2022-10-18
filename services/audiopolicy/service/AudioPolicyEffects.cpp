@@ -545,7 +545,9 @@ void AudioPolicyEffects::EffectVector::setProcessorEnabled(bool enabled)
     VOICE_REC_SRC_TAG,
     VOICE_COMM_SRC_TAG,
     UNPROCESSED_SRC_TAG,
-    VOICE_PERFORMANCE_SRC_TAG
+    VOICE_PERFORMANCE_SRC_TAG,
+    HDMIIN_SRC_TAG,
+    HDMIIN_1_SRC_TAG
 };
 
 // returns the audio_source_t enum corresponding to the input source name or
