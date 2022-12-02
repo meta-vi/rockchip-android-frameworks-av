@@ -119,6 +119,8 @@ constexpr std::pair<audio_source_t, const char*> STREAM_NAME_MAP<audio_source_t>
         {AUDIO_SOURCE_VOICE_COMMUNICATION, "voice_communication"},
         {AUDIO_SOURCE_UNPROCESSED, "unprocessed"},
         {AUDIO_SOURCE_VOICE_PERFORMANCE, "voice_performance"},
+        {AUDIO_SOURCE_HDMIIN, "hdmiin"},
+        {AUDIO_SOURCE_HDMIIN_1, "hdmiin_1"},
         {AUDIO_SOURCE_ECHO_REFERENCE, "echo_reference"},
         {AUDIO_SOURCE_FM_TUNER, "fm_tuner"},
 };

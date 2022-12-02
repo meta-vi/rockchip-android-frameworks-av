@@ -97,6 +97,7 @@ private:
     sp<ALooper> mCodecLooper;
     sp<AMessage> mOutputFormat;
     uint32_t mFlags;
+    int64_t mFrameCounts;
     bool mIsVideo;
     bool mIsH264;
     bool mIsPCMAudio;

@@ -188,6 +188,11 @@ cc_library_shared {
            cppflags:[
                "-DHDMI_ENABLE",
            ],
+       },
+       cameraSupportSubDevice: {
+           cppflags:[
+               "-DSUBDEVICE_ENABLE",
+           ],
        }
     },
     cflags: [

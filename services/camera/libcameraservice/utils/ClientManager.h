@@ -323,7 +323,11 @@ template<class KEY, class VALUE, class LISTENER=DefaultEventListener<KEY, VALUE>
 class ClientManager {
 public:
     // The default maximum "cost" allowed before evicting
+#ifdef SUBDEVICE_ENABLE
+    static constexpr int32_t DEFAULT_MAX_COST = 1000;
+#else
     static constexpr int32_t DEFAULT_MAX_COST = 100;
+#endif
 
     ClientManager();
     explicit ClientManager(int32_t totalCost);
@@ -526,10 +530,11 @@ ClientManager<KEY, VALUE, LISTENER>::wouldEvictLocked(
 
         if (!returnIncompatibleClients) {
             // Find evicted clients
-
+            ALOGV("@%s,%d,conflicting:%d",__FUNCTION__,__LINE__,conflicting);
             if (conflicting && curPriority < priority) {
                 // Pre-existing conflicting client with higher priority exists
                 evictList.clear();
+                ALOGV("@%s,%d,conflicting:%d,curPriority:%d,priority:%d",__FUNCTION__,__LINE__,conflicting,static_cast<int>(curPriority.getScore()),static_cast<int>(priority.getScore()));
                 evictList.push_back(client);
                 return evictList;
             } else if (conflicting && owner == curOwner) {
@@ -538,12 +543,15 @@ ClientManager<KEY, VALUE, LISTENER>::wouldEvictLocked(
                 // Otherwise let the existing client wins to avoid behaviors difference
                 // due to how HAL advertising conflicting devices (which is hidden from
                 // application)
+                ALOGV("@%s,%d,conflicting:%d curKey:,key:",__FUNCTION__,__LINE__,conflicting);
                 if (curKey == key) {
                     evictList.push_back(i);
                     totalCost -= curCost;
+                    ALOGV("@%s,%d,conflicting:%d",__FUNCTION__,__LINE__,conflicting);
                 } else {
                     evictList.clear();
                     evictList.push_back(client);
+                    ALOGV("@%s,%d,conflicting:%d",__FUNCTION__,__LINE__,conflicting);
                     return evictList;
                 }
             } else if (conflicting || ((totalCost > mMaxCost && curCost > 0) &&
@@ -557,13 +565,17 @@ ClientManager<KEY, VALUE, LISTENER>::wouldEvictLocked(
                 //   highest priority.
                 evictList.push_back(i);
                 totalCost -= curCost;
+                ALOGV("@%s,%d,conflicting:%d,curPriority:%d,priority:%d totalCost:%d,mMaxCost:%d,curCost:%d",__FUNCTION__,__LINE__,
+                conflicting,static_cast<int>(curPriority.getScore()),static_cast<int>(priority.getScore()),static_cast<int>(totalCost),static_cast<int>(mMaxCost),static_cast<int>(curCost));
             }
         } else {
             // Find clients preventing the incoming client from being added
-
+            ALOGV("@%s,%d,conflicting:%d,curPriority:%d,priority:%d totalCost:%d,mMaxCost:%d,curCost:%d",__FUNCTION__,__LINE__,
+                conflicting,curPriority.getScore(),static_cast<int>(priority.getScore()),static_cast<int>(totalCost),static_cast<int>(mMaxCost),static_cast<int>(curCost));
             if (curPriority < priority && (conflicting || (totalCost > mMaxCost && curCost > 0))) {
                 // Pre-existing conflicting client with higher priority exists
                 evictList.push_back(i);
+                ALOGV("@%s,%d,conflicting:%d",__FUNCTION__,__LINE__,conflicting);
             }
         }
     }
@@ -577,6 +589,7 @@ ClientManager<KEY, VALUE, LISTENER>::wouldEvictLocked(
     if (totalCost > mMaxCost && highestPriorityOwner != owner) {
         evictList.clear();
         evictList.push_back(client);
+        ALOGV("@%s,%d",__FUNCTION__,__LINE__);
         return evictList;
     }
 
