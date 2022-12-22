@@ -207,10 +207,17 @@ player_type MediaPlayerFactory::getPlayerType(const sp<IMediaPlayer>& client,
         || strstr(filePath.string(), ".mp3")
         || strstr(filePath.string(), ".imy")
         || strstr(filePath.string(), ".apk")
+        || strstr(filePath.string(), ".m4a")
         || strstr(filePath.string(), "notification_sound_cache")
         || strstr(filePath.string(), "ringtone_cache")
         || strstr(filePath.string(), "alarm_alert_cache")) {
         return NU_PLAYER;
+    }
+
+	if (strstr(filePath.string(),".mvc")
+        || strstr(filePath.string(),".flv")
+        || strstr(filePath.string(),".mov")) {
+        return TEST_PLAYER;
     }
 
     GET_PLAYER_TYPE_IMPL(client, fd, offset, length);
