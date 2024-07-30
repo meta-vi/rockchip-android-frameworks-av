@@ -100,6 +100,18 @@ int Camera3Stream::getStreamSetId() const {
     return mSetId;
 }
 
+void Camera3Stream::setWidth(uint32_t w) {
+    camera3_stream::width = w;
+}
+
+void Camera3Stream::setHeight(uint32_t h) {
+    camera3_stream::height = h;
+}
+
+void Camera3Stream::setFormat(int f) {
+    camera3_stream::format = f;
+}
+
 uint32_t Camera3Stream::getWidth() const {
     return camera3_stream::width;
 }

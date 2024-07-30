@@ -153,6 +153,9 @@ class Camera3Stream :
     /**
      * Get the stream's dimensions and format
      */
+    void              setWidth(uint32_t w);
+    void              setHeight(uint32_t h);
+    void              setFormat(int f);
     uint32_t          getWidth() const;
     uint32_t          getHeight() const;
     int               getFormat() const;

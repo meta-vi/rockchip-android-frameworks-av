@@ -1251,7 +1251,7 @@ status_t Camera3Device::createInputStream(
     Mutex::Autolock il(mInterfaceLock);
     nsecs_t maxExpectedDuration = getExpectedInFlightDuration();
     Mutex::Autolock l(mLock);
-    ALOGV("Camera %s: Creating new input stream %d: %d x %d, format %d",
+    ALOGI("Camera %s: Creating new input stream %d: %d x %d, format %d",
             mId.string(), mNextStreamId, width, height, format);
 
     status_t res;
@@ -1298,7 +1298,7 @@ status_t Camera3Device::createInputStream(
 
     // Continue captures if active at start
     if (wasActive) {
-        ALOGV("%s: Restarting activity to reconfigure streams", __FUNCTION__);
+        ALOGD("%s: Restarting activity to reconfigure streams", __FUNCTION__);
         // Reuse current operating mode and session parameters for new stream config
         res = configureStreamsLocked(mOperatingMode, mSessionParams);
         if (res != OK) {
@@ -1343,10 +1343,10 @@ status_t Camera3Device::createStream(const std::vector<sp<Surface>>& consumers,
     Mutex::Autolock il(mInterfaceLock);
     nsecs_t maxExpectedDuration = getExpectedInFlightDuration();
     Mutex::Autolock l(mLock);
-    ALOGV("Camera %s: Creating new stream %d: %d x %d, format %d, dataspace %d rotation %d"
-            " consumer usage %" PRIu64 ", isShared %d, physicalCameraId %s", mId.string(),
+    ALOGI("Camera %s: Creating new stream %d: %d x %d, format %d, dataspace %d rotation %d"
+            " consumer usage %" PRIu64 ", isShared %d, physicalCameraId %s, status %d", mId.string(),
             mNextStreamId, width, height, format, dataSpace, rotation, consumerUsage, isShared,
-            physicalCameraId.string());
+            physicalCameraId.string(), mStatus);
 
     status_t res;
     bool wasActive = false;
@@ -1460,7 +1460,7 @@ status_t Camera3Device::createStream(const std::vector<sp<Surface>>& consumers,
 
     // Continue captures if active at start
     if (wasActive) {
-        ALOGV("%s: Restarting activity to reconfigure streams", __FUNCTION__);
+        ALOGD("%s: Restarting activity to reconfigure streams", __FUNCTION__);
         // Reuse current operating mode and session parameters for new stream config
         res = configureStreamsLocked(mOperatingMode, mSessionParams);
         if (res != OK) {
@@ -2489,6 +2489,35 @@ status_t Camera3Device::configureStreamsLocked(int operatingMode,
         tryRemoveDummyStreamLocked();
     }
 
+    //>>> MetaVision: configure image analysis resolution to capture resolution
+    /**
+     * Hacked:
+     * Using format HAL_PIXEL_FORMAT_BLOB for Image analysis
+     * - Max resolution should be capture stream
+     * - Image Analysis should has resolution 640x480
+     */
+    /// 1. Get capture resolution
+    int captureW = -1; int captureH = -1;
+    for (size_t i = 0; i < mOutputStreams.size(); i++) {
+        ALOGI("%s: Camera %s: checking stream %x, %dx%d", __FUNCTION__, mId.string(),
+                mOutputStreams[i]->getFormat(), mOutputStreams[i]->getWidth(), mOutputStreams[i]->getHeight());
+        if (mOutputStreams[i]->getFormat() == HAL_PIXEL_FORMAT_BLOB) {
+            captureW = mOutputStreams[i]->getWidth();
+            captureH = mOutputStreams[i]->getHeight();
+            break;
+        }
+    }
+    /// 2. Set resolution to analysis
+    for (size_t i = 0; i < mOutputStreams.size(); i++) {
+        if (mOutputStreams[i]->getFormat() == HAL_PIXEL_FORMAT_YCbCr_420_888) {
+            ALOGI("%s: Change analysis %dx%d => %dx%d", __FUNCTION__, mOutputStreams[i]->getWidth(), mOutputStreams[i]->getHeight(), captureW, captureH);
+            mOutputStreams[i]->setWidth(captureW);
+            mOutputStreams[i]->setHeight(captureH);
+            break;
+        }
+    }
+    //<<< MetaVision: configure image analysis resolution to capture resolution
+
     // Start configuring the streams
     ALOGV("%s: Camera %s: Starting stream configuration", __FUNCTION__, mId.string());
 
@@ -3107,6 +3136,9 @@ status_t Camera3Device::HalInterface::configureStreams(const camera_metadata_t *
                     cam3stream->getOriginalFormat() : src->format);
             dst3_2.dataSpace = mapToHidlDataspace(cam3stream->isDataSpaceOverridden() ?
                     cam3stream->getOriginalDataSpace() : src->data_space);
+            ALOGI("%s isFormatOverridden:%d, org:%x, map %dx%d format:%x -> %x", __FUNCTION__,
+                cam3stream->isFormatOverridden(), cam3stream->getOriginalFormat(),
+                dst3_2.width, dst3_2.height, src->format, dst3_2.format);
         } else {
             dst3_2.format = mapToPixelFormat(src->format);
             dst3_2.dataSpace = mapToHidlDataspace(src->data_space);

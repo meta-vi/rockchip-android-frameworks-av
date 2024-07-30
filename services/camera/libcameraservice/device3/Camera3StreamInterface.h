@@ -89,6 +89,9 @@ class Camera3StreamInterface : public virtual RefBase {
     /**
      * Get the stream's dimensions and format
      */
+    virtual void setWidth(uint32_t w) = 0;
+    virtual void setHeight(uint32_t h) = 0;
+    virtual void setFormat(int f) = 0;
     virtual uint32_t getWidth() const = 0;
     virtual uint32_t getHeight() const = 0;
     virtual int      getFormat() const = 0;

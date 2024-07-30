@@ -199,11 +199,15 @@ struct Parameters {
     // Max preview size allowed
     // This is set to a 1:1 value to allow for any aspect ratio that has
     // a max long side of 1920 pixels
-    static const unsigned int MAX_PREVIEW_WIDTH = 1920;
-    static const unsigned int MAX_PREVIEW_HEIGHT = 1920;
+    // static const unsigned int MAX_PREVIEW_WIDTH = 1920;
+    // static const unsigned int MAX_PREVIEW_HEIGHT = 1920;
+    static const unsigned int MAX_PREVIEW_WIDTH = 4056;
+    static const unsigned int MAX_PREVIEW_HEIGHT = 4056;
     // Initial max preview/recording size bound
-    static const int MAX_INITIAL_PREVIEW_WIDTH = 1920;
-    static const int MAX_INITIAL_PREVIEW_HEIGHT = 1080;
+    // static const int MAX_INITIAL_PREVIEW_WIDTH = 1920;
+    // static const int MAX_INITIAL_PREVIEW_HEIGHT = 1080;
+    static const int MAX_INITIAL_PREVIEW_WIDTH = 4056;
+    static const int MAX_INITIAL_PREVIEW_HEIGHT = 3040;
     // Aspect ratio tolerance
     static const CONSTEXPR float ASPECT_RATIO_TOLERANCE = 0.001;
     // Threshold for slow jpeg mode

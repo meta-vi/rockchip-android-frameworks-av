@@ -290,7 +290,8 @@ private:
 
     // Find the closest dimensions for a given format in available stream configurations with
     // a width <= ROUNDING_WIDTH_CAP
-    static const int32_t ROUNDING_WIDTH_CAP = 1920;
+//     static const int32_t ROUNDING_WIDTH_CAP = 1920;
+    static const int32_t ROUNDING_WIDTH_CAP = 4056;
     static bool roundBufferDimensionNearest(int32_t width, int32_t height, int32_t format,
             android_dataspace dataSpace, const CameraMetadata& info,
             /*out*/int32_t* outWidth, /*out*/int32_t* outHeight);
